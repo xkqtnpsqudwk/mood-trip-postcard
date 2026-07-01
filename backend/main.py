@@ -1,5 +1,4 @@
 """FastAPI application for Mood Trip Postcard."""
-import random
 import sqlite3
 from contextlib import asynccontextmanager
 
@@ -67,7 +66,6 @@ class PostcardOut(BaseModel):
     title: str
     message: str
     review: str
-    next_recommendation: str | None
     image_base64: str | None = None
     created_at: str
 
@@ -103,12 +101,6 @@ def _row_to_postcard(
     if row["place_id"] in places_by_id:
         place_name = _localized(places_by_id[row["place_id"]], "name", language)
 
-    next_recommendation = row["next_recommendation"]
-    if row["next_place_id"] in places_by_id:
-        next_recommendation = _localized(
-            places_by_id[row["next_place_id"]], "name", language
-        )
-
     return PostcardOut(
         id=row["id"],
         city=row["city"],
@@ -116,7 +108,6 @@ def _row_to_postcard(
         title=row["title"],
         message=row["message"],
         review=row["review"],
-        next_recommendation=next_recommendation,
         image_base64=row["image_base64"],
         created_at=row["created_at"],
     )
@@ -174,18 +165,13 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
     if place is None:
         raise HTTPException(status_code=404, detail="Place not found")
 
-    other_places = [p for p in places if p["id"] != payload.place_id]
-    next_place = random.choice(other_places) if other_places else place
-
     place_name = _localized(place, "name", payload.language)
-    next_place_name = _localized(next_place, "name", payload.language)
 
     try:
         generated = ai_service.generate_postcard(
             city=payload.city,
             place_name=place_name,
             review=payload.review,
-            next_place_name=next_place_name,
             language=payload.language,
         )
     except Exception as exc:
@@ -203,10 +189,8 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
         title=generated["title"],
         message=generated["message"],
         review=payload.review,
-        next_recommendation=next_place_name,
         image_base64=image_base64,
         place_id=place["id"],
-        next_place_id=next_place["id"],
     )
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, payload.language, places_by_id)

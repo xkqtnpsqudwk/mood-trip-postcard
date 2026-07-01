@@ -46,15 +46,13 @@ def init_db() -> None:
             title TEXT NOT NULL,
             message TEXT NOT NULL,
             review TEXT NOT NULL,
-            next_recommendation TEXT,
             image_base64 TEXT,
             place_id INTEGER,
-            next_place_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """
     )
-    for column in ("image_base64 TEXT", "place_id INTEGER", "next_place_id INTEGER"):
+    for column in ("image_base64 TEXT", "place_id INTEGER"):
         try:
             cursor.execute(f"ALTER TABLE postcards ADD COLUMN {column}")
         except sqlite3.OperationalError:
@@ -212,30 +210,16 @@ def insert_postcard(
     title: str,
     message: str,
     review: str,
-    next_recommendation: str,
     image_base64: str | None = None,
     place_id: int | None = None,
-    next_place_id: int | None = None,
 ) -> sqlite3.Row:
     conn = get_connection()
     cursor = conn.execute(
         """
-        INSERT INTO postcards
-            (city, place_name, title, message, review, next_recommendation,
-             image_base64, place_id, next_place_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO postcards (city, place_name, title, message, review, image_base64, place_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (
-            city,
-            place_name,
-            title,
-            message,
-            review,
-            next_recommendation,
-            image_base64,
-            place_id,
-            next_place_id,
-        ),
+        (city, place_name, title, message, review, image_base64, place_id),
     )
     conn.commit()
     postcard_id = cursor.lastrowid

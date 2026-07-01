@@ -11,14 +11,22 @@ function formatDate(isoString, locale) {
   });
 }
 
-export default function Postcard({ postcard, defaultFlipped = false }) {
+export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
   const { t } = useLanguage();
   const [isFlipped, setIsFlipped] = useState(defaultFlipped);
+
+  const handleClick = () => {
+    if (onOpen) {
+      onOpen();
+    } else {
+      setIsFlipped((flipped) => !flipped);
+    }
+  };
 
   return (
     <div
       className={`postcard-flip aspect-[3/2] w-full cursor-pointer ${isFlipped ? "is-flipped" : ""}`}
-      onClick={() => setIsFlipped((flipped) => !flipped)}
+      onClick={handleClick}
     >
       <div className="postcard-flip-inner relative h-full w-full">
         <div className="postcard-face absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-br from-amber-50 via-rose-50 to-rose-200 p-6 shadow-[0_20px_45px_-12px_rgba(251,113,133,0.4)] ring-1 ring-white/60 dark:from-fuchsia-950/60 dark:via-transparent dark:to-cyan-950/40 dark:ring-fuchsia-500/20 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)]">
@@ -34,7 +42,7 @@ export default function Postcard({ postcard, defaultFlipped = false }) {
             </p>
           </div>
           <p className="text-[10px] text-stone-400 dark:text-zinc-500">
-            {t.postcard.tapToFlip}
+            {onOpen ? t.postcard.tapToOpen : t.postcard.tapToFlip}
           </p>
         </div>
 
@@ -63,12 +71,6 @@ export default function Postcard({ postcard, defaultFlipped = false }) {
                   {postcard.review}
                 </p>
               </div>
-              {postcard.next_recommendation && (
-                <p className="text-xs text-stone-500 dark:text-zinc-400">
-                  {t.postcard.nextStop}{" "}
-                  <span className="font-medium">{postcard.next_recommendation}</span>
-                </p>
-              )}
               <p className="text-right text-[10px] text-stone-400 dark:text-zinc-500">
                 {formatDate(postcard.created_at, t.postcard.locale)}
               </p>

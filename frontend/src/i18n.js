@@ -37,14 +37,15 @@ export const translations = {
     },
     postcard: {
       tapToFlip: "Tap to flip →",
+      tapToOpen: "Tap to enlarge →",
       myReview: "My review",
-      nextStop: "Next stop:",
       locale: "en-US",
     },
     archive: {
       loading: "Loading your postcards...",
       error: "Couldn't load the archive. Please try again.",
       empty: "No postcards yet — go create your first mood trip!",
+      close: "Close",
     },
     postcardArrived: "Your postcard has arrived ✉",
     planAnother: "Plan another trip",
@@ -91,14 +92,15 @@ export const translations = {
     },
     postcard: {
       tapToFlip: "눌러서 뒤집기 →",
+      tapToOpen: "눌러서 크게 보기 →",
       myReview: "나의 후기",
-      nextStop: "다음 추천 장소:",
       locale: "ko-KR",
     },
     archive: {
       loading: "엽서를 불러오는 중...",
       error: "보관함을 불러오지 못했어요. 다시 시도해주세요.",
       empty: "아직 엽서가 없어요 — 첫 감성 여행을 만들어보세요!",
+      close: "닫기",
     },
     postcardArrived: "엽서가 도착했어요 ✉",
     planAnother: "새로운 여행 계획하기",

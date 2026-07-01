@@ -8,7 +8,7 @@ import httpx
 from openai import OpenAI
 
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-NIM_MODEL = "deepseek-ai/deepseek-v4-pro"
+NIM_MODEL = "meta/llama-4-maverick-17b-128e-instruct"
 
 NIM_IMAGE_URL = "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev"
 
@@ -81,7 +81,6 @@ def generate_postcard(
     city: str,
     place_name: str,
     review: str,
-    next_place_name: str,
     language: str = "en",
 ) -> dict:
     """Generate a poetic postcard title and message from a visit review.
@@ -94,20 +93,18 @@ def generate_postcard(
         "You are a poet who writes short, heartfelt digital travel postcards. "
         "Given the city, the place visited, and the traveler's review, write a "
         "short poetic postcard title (under 8 words) and an emotional postcard "
-        "message (2-4 sentences), weaving in the next recommended spot as a "
-        f"gentle invitation. Write both entirely in {language_name}, using only "
-        f"the {language_name} script — never mix in Chinese, Japanese, Cyrillic, "
-        "Greek, or any other language's characters. Keep place names exactly as "
-        "given, in their original spelling, rather than transliterating or "
-        "translating them. "
+        f"message (2-4 sentences). Write both entirely in {language_name}, using "
+        f"only the {language_name} script — never mix in Chinese, Japanese, "
+        "Cyrillic, Greek, or any other language's characters. Keep place names "
+        "exactly as given, in their original spelling, rather than "
+        "transliterating or translating them. "
         "Respond with ONLY a JSON object in this exact shape: "
         '{"title": "a poetic title", "message": "a short emotional message"}'
     )
     user_prompt = (
         f"City: {city}\n"
         f"Place visited: {place_name}\n"
-        f"Traveler's review: {review}\n"
-        f"Next recommended spot: {next_place_name}"
+        f"Traveler's review: {review}"
     )
 
     completion = client.chat.completions.create(

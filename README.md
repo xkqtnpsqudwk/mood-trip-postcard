@@ -6,7 +6,7 @@ React(Vite + Tailwind) 프론트엔드와 Python FastAPI 백엔드로
 ## 아키텍처
 
 - `/backend` — FastAPI + SQLite. NVIDIA NIM API를 다음 용도로 사용합니다:
-  - 기분 분석 및 엽서 텍스트 생성 (`deepseek-ai/deepseek-v4-pro`)
+  - 기분 분석 및 엽서 텍스트 생성 (`meta/llama-4-maverick-17b-128e-instruct`)
   - 엽서 사진 생성 (`black-forest-labs/flux.1-dev`, NVIDIA가 호스팅하는
     `ai.api.nvidia.com/v1/genai/...` NIM 엔드포인트 — 채팅 모델과 동일한 API 키 사용)
 - `/frontend` — React(Vite) + Tailwind CSS, 한국어/영어(KO/EN) 언어 토글 포함.
@@ -70,7 +70,7 @@ npm run dev
 
 - `POST /api/analyze` — `{ city, mood_text, language }` → 은유적 단서, 태그, 매칭된 장소 목록을
   반환합니다. `language`는 `"ko"` 또는 `"en"`이며, 태그는 장소 매칭을 위해 항상 영어로 반환됩니다.
-- `POST /api/postcard` — `{ city, place_name, review, language }` → 생성된 엽서를 저장하고
+- `POST /api/postcard` — `{ city, place_id, review, language }` → 생성된 엽서를 저장하고
   반환합니다. FLUX.1-dev가 그린 사진이 base64로 인코딩된 `image_base64` 필드에 포함됩니다.
 - `GET /api/archive` — 저장된 모든 엽서를 최신순으로 반환합니다.
 - `GET /api/places?city=` — 시드된 관광지 목록 (디버그/조회용).
