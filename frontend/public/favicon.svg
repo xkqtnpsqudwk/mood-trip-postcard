@@ -1,40 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Mood Trip Postcard Icon</title>
-  <desc id="desc">A transparent SVG icon combining a postcard, location pin, and sparkle in a purple to blue gradient.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title id="title">Mood Trip Postcard</title>
   <defs>
-    <linearGradient id="moodTripGradient" x1="88" y1="118" x2="424" y2="414" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ff38d6"/>
-      <stop offset="0.45" stop-color="#8b5cf6"/>
-      <stop offset="1" stop-color="#06b6d4"/>
+    <linearGradient id="g" x1="3" y1="5" x2="29" y2="27" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#a78bfa"/>
     </linearGradient>
-    <filter id="softGlow" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.55  0 0 0 0 0.22  0 0 0 0 1  0 0 0 0.45 0" result="glow"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
-
-  <g filter="url(#softGlow)" fill="url(#moodTripGradient)">
-    <!-- AI / oracle sparkle -->
-    <path d="M157 76c6 34 20 48 54 54-34 6-48 20-54 54-6-34-20-48-54-54 34-6 48-20 54-54z"/>
-
-    <!-- Postcard outer shape -->
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M118 211c0-21.54 17.46-39 39-39h96c8.84 0 16 7.16 16 16s-7.16 16-16 16h-96c-3.87 0-7 3.13-7 7v191c0 3.87 3.13 7 7 7h232c3.87 0 7-3.13 7-7V259c0-8.84 7.16-16 16-16s16 7.16 16 16v143c0 21.54-17.46 39-39 39H157c-21.54 0-39-17.46-39-39V211z"/>
-
-    <!-- Mountain / landscape inside postcard -->
-    <path d="M150 374l54-58c8.2-8.8 22.14-8.68 30.19.25l20.16 22.38 48.27-56.76c8.3-9.76 23.49-9.67 31.67.2L396 356v46c0 3.87-3.13 7-7 7H157c-3.87 0-7-3.13-7-7v-28z"/>
-
-    <!-- Sun / mood dot -->
-    <circle cx="197" cy="262" r="26"/>
-
-    <!-- Text/address lines on postcard -->
-    <rect x="310" y="332" width="86" height="16" rx="8"/>
-    <rect x="310" y="367" width="86" height="16" rx="8"/>
-
-    <!-- Location pin -->
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M344 91c-58.54 0-106 47.46-106 106 0 81.2 90.26 161.6 99.36 169.42 3.82 3.28 9.46 3.28 13.28 0C359.74 358.6 450 278.2 450 197c0-58.54-47.46-106-106-106zm0 144c20.99 0 38-17.01 38-38s-17.01-38-38-38-38 17.01-38 38 17.01 38 38 38z"/>
-  </g>
+  <rect x="3" y="5" width="26" height="22" rx="4" fill="url(#g)"/>
+  <path d="M16 20.5c-3.2-2.4-5.6-4.5-5.6-6.9a3.1 3.1 0 015.6-1.8 3.1 3.1 0 015.6 1.8c0 2.4-2.4 4.5-5.6 6.9z" fill="#fff"/>
+  <rect x="8" y="24" width="6" height="1.6" rx="0.8" fill="#fff" opacity="0.85"/>
 </svg>
