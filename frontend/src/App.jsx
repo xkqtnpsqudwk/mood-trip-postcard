@@ -57,7 +57,7 @@ function AppContent() {
     setError(null);
     setIsCreatingPostcard(true);
     try {
-      const postcard = await createPostcard(city, selectedPlace.name, review, lang);
+      const postcard = await createPostcard(city, selectedPlace.id, review, lang);
       setCreatedPostcard(postcard);
       setStep("postcard");
       setArchiveRefreshKey((key) => key + 1);

@@ -10,9 +10,9 @@ export const analyzeMood = (city, moodText, language) =>
     .post("/analyze", { city, mood_text: moodText, language })
     .then((res) => res.data);
 
-export const createPostcard = (city, placeName, review, language) =>
+export const createPostcard = (city, placeId, review, language) =>
   api
-    .post("/postcard", { city, place_name: placeName, review, language })
+    .post("/postcard", { city, place_id: placeId, review, language })
     .then((res) => res.data);
 
 export const fetchArchive = () =>

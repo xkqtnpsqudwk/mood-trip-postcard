@@ -8,7 +8,7 @@ import httpx
 from openai import OpenAI
 
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-NIM_MODEL = "meta/llama-3.3-70b-instruct"
+NIM_MODEL = "deepseek-ai/deepseek-v4-pro"
 
 NIM_IMAGE_URL = "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev"
 
