@@ -31,3 +31,6 @@ import.md/
 # Logs
 *.log
 backend/server.log
+
+# Local tooling
+.claude/
