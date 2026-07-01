@@ -28,6 +28,9 @@ Thumbs.db
 # Markdown
 import.md/
 
+# Generated artifacts
+outputs/
+
 # Logs
 *.log
 backend/server.log
