@@ -21,22 +21,24 @@ export default function Postcard({ postcard, defaultFlipped = false }) {
       onClick={() => setIsFlipped((flipped) => !flipped)}
     >
       <div className="postcard-flip-inner relative h-full w-full">
-        <div className="postcard-face absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-br from-amber-50 to-rose-100 p-6 shadow-lg ring-1 ring-stone-200">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-400">
+        <div className="postcard-face absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-br from-amber-50 via-rose-50 to-rose-200 p-6 shadow-[0_20px_45px_-12px_rgba(251,113,133,0.4)] ring-1 ring-white/60 dark:from-fuchsia-950/60 dark:via-transparent dark:to-cyan-950/40 dark:ring-fuchsia-500/20 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-400">
             {t.cities[postcard.city] ?? postcard.city} &middot; {postcard.place_name}
           </p>
           <div>
-            <h3 className="font-[family-name:var(--font-display)] text-xl text-stone-800">
+            <h3 className="font-[family-name:var(--font-display)] text-xl text-stone-800 dark:text-cyan-100">
               {postcard.title}
             </h3>
-            <p className="mt-2 line-clamp-4 text-sm italic text-stone-600">
+            <p className="mt-2 line-clamp-4 text-sm italic text-stone-600 dark:text-zinc-300">
               {postcard.message}
             </p>
           </div>
-          <p className="text-[10px] text-stone-400">{t.postcard.tapToFlip}</p>
+          <p className="text-[10px] text-stone-400 dark:text-zinc-500">
+            {t.postcard.tapToFlip}
+          </p>
         </div>
 
-        <div className="postcard-face postcard-face-back absolute inset-0 overflow-hidden rounded-2xl shadow-lg ring-1 ring-stone-200">
+        <div className="postcard-face postcard-face-back absolute inset-0 overflow-hidden rounded-2xl shadow-[0_20px_45px_-12px_rgba(167,139,250,0.4)] ring-1 ring-white/60 dark:ring-cyan-500/20 dark:shadow-[0_0_30px_rgba(34,211,238,0.2)]">
           {postcard.image_base64 ? (
             <>
               <img
@@ -52,20 +54,22 @@ export default function Postcard({ postcard, defaultFlipped = false }) {
               </div>
             </>
           ) : (
-            <div className="flex h-full w-full flex-col justify-between bg-white p-6">
+            <div className="flex h-full w-full flex-col justify-between bg-white p-6 dark:bg-zinc-900">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-400">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-400 dark:text-cyan-400">
                   {t.postcard.myReview}
                 </p>
-                <p className="mt-2 text-sm text-stone-600">{postcard.review}</p>
+                <p className="mt-2 text-sm text-stone-600 dark:text-zinc-300">
+                  {postcard.review}
+                </p>
               </div>
               {postcard.next_recommendation && (
-                <p className="text-xs text-stone-500">
+                <p className="text-xs text-stone-500 dark:text-zinc-400">
                   {t.postcard.nextStop}{" "}
                   <span className="font-medium">{postcard.next_recommendation}</span>
                 </p>
               )}
-              <p className="text-right text-[10px] text-stone-400">
+              <p className="text-right text-[10px] text-stone-400 dark:text-zinc-500">
                 {formatDate(postcard.created_at, t.postcard.locale)}
               </p>
             </div>

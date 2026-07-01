@@ -15,7 +15,7 @@ export const createPostcard = (city, placeId, review, language) =>
     .post("/postcard", { city, place_id: placeId, review, language })
     .then((res) => res.data);
 
-export const fetchArchive = () =>
-  api.get("/archive").then((res) => res.data);
+export const fetchArchive = (language) =>
+  api.get("/archive", { params: { language } }).then((res) => res.data);
 
 export default api;

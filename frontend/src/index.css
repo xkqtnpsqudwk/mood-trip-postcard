@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-display: "Georgia", "Noto Serif KR", serif;
 }
@@ -7,8 +9,23 @@
 body {
   margin: 0;
   font-family: system-ui, "Segoe UI", "Noto Sans KR", sans-serif;
-  background: linear-gradient(180deg, #fdf6f0 0%, #f3eef9 100%);
+  background:
+    radial-gradient(circle at 12% -10%, rgba(251, 182, 206, 0.55) 0%, transparent 45%),
+    radial-gradient(circle at 105% 15%, rgba(196, 181, 253, 0.5) 0%, transparent 50%),
+    linear-gradient(180deg, #fdf6f0 0%, #f3eef9 100%);
+  background-attachment: fixed;
   min-height: 100vh;
+  transition: background 0.4s ease;
+}
+
+.dark body {
+  background: radial-gradient(circle at 20% 0%, #1a0e2e 0%, #0a0612 45%, #050308 100%);
+}
+
+.dark .neon-text {
+  text-shadow:
+    0 0 8px currentColor,
+    0 0 20px currentColor;
 }
 
 .postcard-flip {

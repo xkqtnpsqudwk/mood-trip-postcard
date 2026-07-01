@@ -92,15 +92,31 @@ def _row_to_place(row: sqlite3.Row, score: int = 0, language: str = "en") -> Pla
     )
 
 
-def _row_to_postcard(row: sqlite3.Row) -> PostcardOut:
+def _row_to_postcard(
+    row: sqlite3.Row,
+    language: str = "en",
+    places_by_id: dict[int, sqlite3.Row] | None = None,
+) -> PostcardOut:
+    places_by_id = places_by_id or {}
+
+    place_name = row["place_name"]
+    if row["place_id"] in places_by_id:
+        place_name = _localized(places_by_id[row["place_id"]], "name", language)
+
+    next_recommendation = row["next_recommendation"]
+    if row["next_place_id"] in places_by_id:
+        next_recommendation = _localized(
+            places_by_id[row["next_place_id"]], "name", language
+        )
+
     return PostcardOut(
         id=row["id"],
         city=row["city"],
-        place_name=row["place_name"],
+        place_name=place_name,
         title=row["title"],
         message=row["message"],
         review=row["review"],
-        next_recommendation=row["next_recommendation"],
+        next_recommendation=next_recommendation,
         image_base64=row["image_base64"],
         created_at=row["created_at"],
     )
@@ -189,14 +205,18 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
         review=payload.review,
         next_recommendation=next_place_name,
         image_base64=image_base64,
+        place_id=place["id"],
+        next_place_id=next_place["id"],
     )
-    return _row_to_postcard(row)
+    places_by_id = {p["id"]: p for p in places}
+    return _row_to_postcard(row, payload.language, places_by_id)
 
 
 @app.get("/api/archive", response_model=list[PostcardOut])
-def archive() -> list[PostcardOut]:
+def archive(language: str = "en") -> list[PostcardOut]:
     rows = database.get_all_postcards()
-    return [_row_to_postcard(row) for row in rows]
+    places_by_id = {p["id"]: p for p in database.get_all_places()}
+    return [_row_to_postcard(row, language, places_by_id) for row in rows]
 
 
 @app.get("/api/places", response_model=list[PlaceOut])

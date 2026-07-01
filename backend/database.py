@@ -48,14 +48,17 @@ def init_db() -> None:
             review TEXT NOT NULL,
             next_recommendation TEXT,
             image_base64 TEXT,
+            place_id INTEGER,
+            next_place_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """
     )
-    try:
-        cursor.execute("ALTER TABLE postcards ADD COLUMN image_base64 TEXT")
-    except sqlite3.OperationalError:
-        pass  # column already exists on a pre-existing database
+    for column in ("image_base64 TEXT", "place_id INTEGER", "next_place_id INTEGER"):
+        try:
+            cursor.execute(f"ALTER TABLE postcards ADD COLUMN {column}")
+        except sqlite3.OperationalError:
+            pass  # column already exists on a pre-existing database
 
     conn.commit()
 
@@ -211,14 +214,28 @@ def insert_postcard(
     review: str,
     next_recommendation: str,
     image_base64: str | None = None,
+    place_id: int | None = None,
+    next_place_id: int | None = None,
 ) -> sqlite3.Row:
     conn = get_connection()
     cursor = conn.execute(
         """
-        INSERT INTO postcards (city, place_name, title, message, review, next_recommendation, image_base64)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO postcards
+            (city, place_name, title, message, review, next_recommendation,
+             image_base64, place_id, next_place_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (city, place_name, title, message, review, next_recommendation, image_base64),
+        (
+            city,
+            place_name,
+            title,
+            message,
+            review,
+            next_recommendation,
+            image_base64,
+            place_id,
+            next_place_id,
+        ),
     )
     conn.commit()
     postcard_id = cursor.lastrowid
