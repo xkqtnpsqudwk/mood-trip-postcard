@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Georgia", "Noto Serif KR", serif;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", "Noto Sans KR", sans-serif;
+  background: linear-gradient(180deg, #fdf6f0 0%, #f3eef9 100%);
+  min-height: 100vh;
+}
+
+.postcard-flip {
+  perspective: 1500px;
+}
+
+.postcard-flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.postcard-flip.is-flipped .postcard-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.postcard-face {
+  backface-visibility: hidden;
+}
+
+.postcard-face-back {
+  transform: rotateY(180deg);
+}
