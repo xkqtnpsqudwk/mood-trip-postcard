@@ -37,19 +37,32 @@ class AnalyzeRequest(BaseModel):
     language: str = "en"
 
 
+class LocalizedText(BaseModel):
+    en: str
+    ko: str
+
+
+class LocalizedTag(BaseModel):
+    en: str
+    ko: str
+
+
 class PlaceOut(BaseModel):
     id: int
     city: str
     name: str
     description: str
     mood_tags: str
+    name_i18n: LocalizedText
+    description_i18n: LocalizedText
+    mood_tags_i18n: LocalizedText
     image_url: str | None = None
     match_score: int = 0
 
 
 class AnalyzeResponse(BaseModel):
-    clue: str
-    tags: list[str]
+    clue: LocalizedText
+    tags: list[LocalizedTag]
     places: list[PlaceOut]
 
 
@@ -64,8 +77,11 @@ class PostcardOut(BaseModel):
     id: int
     city: str
     place_name: str
+    place_name_i18n: LocalizedText
     title: str
     message: str
+    title_i18n: LocalizedText
+    message_i18n: LocalizedText
     review: str
     image_base64: str | None = None
     created_at: str
@@ -137,6 +153,21 @@ def _localized(row: sqlite3.Row, field: str, language: str) -> str:
     return row[field]
 
 
+def _localized_pair(row: sqlite3.Row, field: str) -> LocalizedText:
+    return LocalizedText(
+        en=row[field],
+        ko=row[f"{field}_ko"] or row[field],
+    )
+
+
+def _row_value(row: sqlite3.Row, field: str, default: str = "") -> str:
+    try:
+        value = row[field]
+    except (KeyError, IndexError):
+        return default
+    return value or default
+
+
 def _row_to_place(row: sqlite3.Row, score: int = 0, language: str = "en") -> PlaceOut:
     return PlaceOut(
         id=row["id"],
@@ -144,6 +175,9 @@ def _row_to_place(row: sqlite3.Row, score: int = 0, language: str = "en") -> Pla
         name=_localized(row, "name", language),
         description=_localized(row, "description", language),
         mood_tags=_localized(row, "mood_tags", language),
+        name_i18n=_localized_pair(row, "name"),
+        description_i18n=_localized_pair(row, "description"),
+        mood_tags_i18n=_localized_pair(row, "mood_tags"),
         image_url=row["image_url"],
         match_score=score,
     )
@@ -157,15 +191,26 @@ def _row_to_postcard(
     places_by_id = places_by_id or {}
 
     place_name = row["place_name"]
+    place_name_i18n = LocalizedText(en=place_name, ko=place_name)
     if row["place_id"] in places_by_id:
-        place_name = _localized(places_by_id[row["place_id"]], "name", language)
+        place_row = places_by_id[row["place_id"]]
+        place_name_i18n = _localized_pair(place_row, "name")
+        place_name = place_name_i18n.ko if language == "ko" else place_name_i18n.en
+
+    title_en = _row_value(row, "title_en", row["title"])
+    title_ko = _row_value(row, "title_ko", row["title"])
+    message_en = _row_value(row, "message_en", row["message"])
+    message_ko = _row_value(row, "message_ko", row["message"])
 
     return PostcardOut(
         id=row["id"],
         city=row["city"],
         place_name=place_name,
-        title=row["title"],
-        message=row["message"],
+        place_name_i18n=place_name_i18n,
+        title=title_ko if language == "ko" else title_en,
+        message=message_ko if language == "ko" else message_en,
+        title_i18n=LocalizedText(en=title_en, ko=title_ko),
+        message_i18n=LocalizedText(en=message_en, ko=message_ko),
         review=row["review"],
         image_base64=row["image_base64"],
         created_at=row["created_at"],
@@ -191,6 +236,16 @@ def _rank_places_by_tags(
     ]
 
 
+def _english_tags(tags: list[dict[str, str] | str]) -> list[str]:
+    values = []
+    for tag in tags:
+        if isinstance(tag, dict):
+            values.append(str(tag.get("en", "")))
+        else:
+            values.append(str(tag))
+    return values
+
+
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
     if not payload.mood_text.strip():
@@ -207,7 +262,7 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {exc}") from exc
 
-    ranked = _rank_places_by_tags(places, analysis["tags"], payload.language)
+    ranked = _rank_places_by_tags(places, _english_tags(analysis["tags"]), payload.language)
     top_places = ranked[:3]
 
     return AnalyzeResponse(clue=analysis["clue"], tags=analysis["tags"], places=top_places)
@@ -229,6 +284,8 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
         raise HTTPException(status_code=404, detail="Place not found")
 
     place_name = _localized(place, "name", payload.language)
+    place_name_en = _localized(place, "name", "en")
+    place_name_ko = _localized(place, "name", "ko")
 
     try:
         generated = ai_service.generate_postcard(
@@ -236,6 +293,8 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
             place_name=place_name,
             review=payload.review,
             language=payload.language,
+            place_name_en=place_name_en,
+            place_name_ko=place_name_ko,
         )
     except Exception as exc:
         raise HTTPException(
@@ -249,11 +308,15 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
     row = database.insert_postcard(
         city=payload.city,
         place_name=place_name,
-        title=generated["title"],
-        message=generated["message"],
+        title=generated["title"]["en"],
+        message=generated["message"]["en"],
         review=payload.review,
         image_base64=image_base64,
         place_id=place["id"],
+        title_en=generated["title"]["en"],
+        message_en=generated["message"]["en"],
+        title_ko=generated["title"]["ko"],
+        message_ko=generated["message"]["ko"],
     )
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, payload.language, places_by_id)

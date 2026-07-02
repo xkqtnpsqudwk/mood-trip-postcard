@@ -44,26 +44,54 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
-def analyze_mood(city: str, mood_text: str, language: str = "en") -> dict:
-    """Analyze the user's mood text and return tags plus a metaphorical clue.
+def _localized_text(value, fallback: str = "") -> dict[str, str]:
+    if isinstance(value, dict):
+        en = str(value.get("en") or value.get("english") or fallback).strip()
+        ko = str(value.get("ko") or value.get("korean") or fallback).strip()
+        return {"en": en, "ko": ko}
+    text = str(value or fallback).strip()
+    return {"en": text, "ko": text}
 
-    Returns: {"tags": [str, ...], "clue": str}
+
+def _localized_tags(value) -> list[dict[str, str]]:
+    tags = []
+    for item in value or []:
+        if isinstance(item, dict):
+            en = str(item.get("en") or item.get("english") or "").strip().lower()
+            ko = str(item.get("ko") or item.get("korean") or en).strip()
+        else:
+            en = str(item).strip().lower()
+            ko = en
+        if en:
+            tags.append({"en": en, "ko": ko})
+    return tags
+
+
+def analyze_mood(city: str, mood_text: str, language: str = "en") -> dict:
+    """Analyze mood text and return bilingual tags plus a bilingual clue.
+
+    Returns: {"tags": [{"en": str, "ko": str}, ...], "clue": {"en": str, "ko": str}}
     """
     client = _get_client()
-    language_name = _language_name(language)
     system_prompt = (
         "You are an emotionally perceptive travel companion. Given a city and a "
         "traveler's mood description, extract 3-5 short emotional/vibe keywords "
-        "(single words or short phrases, in English, lowercase, for internal "
-        "matching) that capture their feeling, and write one poetic 'metaphorical "
-        f"clue' sentence that hints at the kind of place they should visit. "
-        f"Write the clue entirely in {language_name}, using only the "
-        f"{language_name} script — never mix in Chinese, Japanese, Cyrillic, "
-        "Greek, or any other language's characters. "
+        "that capture their feeling, and write one poetic metaphorical clue "
+        "sentence that hints at the kind of place they should visit. Return both "
+        "English and Korean for display. The English tag must be lowercase and "
+        "short because it is used for matching; the Korean tag must be the same "
+        "meaning translated naturally for display, with no hashtag. English text "
+        "must use English only. Korean text must use Korean only, except place "
+        "names when needed. "
         "Respond with ONLY a JSON object in this exact shape: "
-        '{"tags": ["tag1", "tag2", "tag3"], "clue": "a poetic sentence"}'
+        '{"tags": [{"en": "excited", "ko": "신나는"}], '
+        '"clue": {"en": "a poetic sentence", "ko": "같은 의미의 한국어 문장"}}'
     )
-    user_prompt = f"City: {city}\nMood: {mood_text}"
+    user_prompt = (
+        f"City: {city}\n"
+        f"Preferred UI language for tone reference: {_language_name(language)}\n"
+        f"Mood: {mood_text}"
+    )
 
     completion = client.chat.completions.create(
         model=NIM_MODEL,
@@ -72,13 +100,13 @@ def analyze_mood(city: str, mood_text: str, language: str = "en") -> dict:
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
-        max_tokens=400,
+        max_tokens=600,
     )
     content = completion.choices[0].message.content
     data = _extract_json(content)
     return {
-        "tags": [str(t).strip().lower() for t in data.get("tags", [])],
-        "clue": str(data.get("clue", "")).strip(),
+        "tags": _localized_tags(data.get("tags", [])),
+        "clue": _localized_text(data.get("clue", "")),
     }
 
 
@@ -87,28 +115,33 @@ def generate_postcard(
     place_name: str,
     review: str,
     language: str = "en",
+    place_name_en: str | None = None,
+    place_name_ko: str | None = None,
 ) -> dict:
-    """Generate a poetic postcard title and message from a visit review.
+    """Generate a bilingual poetic postcard title and message.
 
-    Returns: {"title": str, "message": str}
+    Returns: {"title": {"en": str, "ko": str}, "message": {"en": str, "ko": str}}
     """
     client = _get_client()
-    language_name = _language_name(language)
+    place_name_en = place_name_en or place_name
+    place_name_ko = place_name_ko or place_name
     system_prompt = (
         "You are a poet who writes short, heartfelt digital travel postcards. "
         "Given the city, the place visited, and the traveler's review, write a "
         "short poetic postcard title (under 8 words) and an emotional postcard "
-        f"message (2-4 sentences). Write both entirely in {language_name}, using "
-        f"only the {language_name} script — never mix in Chinese, Japanese, "
-        "Cyrillic, Greek, or any other language's characters. Keep place names "
-        "exactly as given, in their original spelling, rather than "
-        "transliterating or translating them. "
+        "message (2-4 sentences). Return both English and Korean. English text "
+        "must use English only. Korean text must use Korean only, except place "
+        "names. Keep each place name exactly as provided for that language. "
         "Respond with ONLY a JSON object in this exact shape: "
-        '{"title": "a poetic title", "message": "a short emotional message"}'
+        '{"title": {"en": "a poetic title", "ko": "같은 의미의 한국어 제목"}, '
+        '"message": {"en": "a short emotional message", '
+        '"ko": "같은 의미의 한국어 메시지"}}'
     )
     user_prompt = (
         f"City: {city}\n"
-        f"Place visited: {place_name}\n"
+        f"Place visited, English name: {place_name_en}\n"
+        f"Place visited, Korean name: {place_name_ko}\n"
+        f"Preferred UI language for tone reference: {_language_name(language)}\n"
         f"Traveler's review: {review}"
     )
 
@@ -119,13 +152,13 @@ def generate_postcard(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
-        max_tokens=400,
+        max_tokens=700,
     )
     content = completion.choices[0].message.content
     data = _extract_json(content)
     return {
-        "title": str(data.get("title", "")).strip(),
-        "message": str(data.get("message", "")).strip(),
+        "title": _localized_text(data.get("title", "")),
+        "message": _localized_text(data.get("message", "")),
     }
 
 

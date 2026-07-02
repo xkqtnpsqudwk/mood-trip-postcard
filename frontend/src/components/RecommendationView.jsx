@@ -1,7 +1,23 @@
 import { useLanguage } from "../LanguageContext";
 
+const normalizeTag = (tag) => String(tag).trim().toLowerCase().replace(/[\s_]+/g, "-");
+
+const localized = (value, lang) => {
+  if (value && typeof value === "object") {
+    return value[lang] ?? value.en ?? value.ko ?? "";
+  }
+  return value ?? "";
+};
+
+const localizedTag = (tag, lang, t) => {
+  if (tag && typeof tag === "object") {
+    return localized(tag, lang);
+  }
+  return t.tagLabels?.[normalizeTag(tag)] ?? tag;
+};
+
 export default function RecommendationView({ result, onSelectPlace, onStartOver }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   if (!result) return null;
   const { clue, tags, places } = result;
 
@@ -12,16 +28,16 @@ export default function RecommendationView({ result, onSelectPlace, onStartOver 
           {t.recommendation.clueLabel}
         </p>
         <p className="mt-3 font-[family-name:var(--font-display)] text-lg italic text-stone-700 sm:text-xl dark:text-cyan-100">
-          &ldquo;{clue}&rdquo;
+          &ldquo;{localized(clue, lang)}&rdquo;
         </p>
         {tags?.length > 0 && (
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {tags.map((tag) => (
+            {tags.map((tag, index) => (
               <span
-                key={tag}
+                key={`${localizedTag(tag, "en", t)}-${index}`}
                 className="rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-rose-500 dark:bg-zinc-900/70 dark:text-fuchsia-300 dark:ring-1 dark:ring-fuchsia-500/20"
               >
-                #{tag}
+                #{localizedTag(tag, lang, t)}
               </span>
             ))}
           </div>
@@ -40,13 +56,13 @@ export default function RecommendationView({ result, onSelectPlace, onStartOver 
               className="group flex flex-col rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-rose-200 hover:shadow-[0_16px_30px_-10px_rgba(251,113,133,0.35)] dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-fuchsia-500/50 dark:hover:shadow-[0_0_20px_rgba(232,68,255,0.25)]"
             >
               <span className="text-base font-semibold text-stone-800 group-hover:text-rose-500 dark:text-zinc-100 dark:group-hover:text-fuchsia-300">
-                {place.name}
+                {localized(place.name_i18n, lang) || place.name}
               </span>
               <span className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
-                {place.description}
+                {localized(place.description_i18n, lang) || place.description}
               </span>
               <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
-                {place.mood_tags}
+                {localized(place.mood_tags_i18n, lang) || place.mood_tags}
               </span>
               <span className="mt-4 text-sm font-medium text-rose-400 dark:text-cyan-400">
                 {t.recommendation.visitCta}
