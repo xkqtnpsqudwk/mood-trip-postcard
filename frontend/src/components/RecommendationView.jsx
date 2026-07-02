@@ -24,6 +24,7 @@ export default function RecommendationView({
   onSelectPlace,
   onStartOver,
   onEndTrip,
+  onDismiss,
 }) {
   const { t, lang } = useLanguage();
   if (!result) return null;
@@ -139,6 +140,14 @@ export default function RecommendationView({
         >
           {t.recommendation.startOver}
         </button>
+        {!isContinuation && (
+          <button
+            onClick={onDismiss}
+            className="text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+          >
+            {t.recommendation.dismiss}
+          </button>
+        )}
       </div>
     </div>
   );

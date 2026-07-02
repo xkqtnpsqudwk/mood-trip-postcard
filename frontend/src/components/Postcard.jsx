@@ -41,24 +41,24 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
       onClick={handleClick}
     >
       <div className="postcard-flip-inner relative h-full w-full">
-        <div className="postcard-face absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-br from-amber-50 via-rose-50 to-rose-200 p-6 shadow-[0_20px_45px_-12px_rgba(251,113,133,0.4)] ring-1 ring-white/60 dark:from-fuchsia-950/60 dark:via-transparent dark:to-cyan-950/40 dark:ring-fuchsia-500/20 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)]">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-400">
+        <div className="postcard-face absolute inset-0 flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 via-rose-50 to-rose-200 p-6 shadow-[0_20px_45px_-12px_rgba(251,113,133,0.4)] ring-1 ring-white/60 dark:from-fuchsia-950/60 dark:via-transparent dark:to-cyan-950/40 dark:ring-fuchsia-500/20 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+          <p className="shrink-0 truncate text-[10px] font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-400">
             {t.cities[postcard.city] ?? postcard.city} &middot; {placeName}
           </p>
-          <div>
-            <h3 className="font-[family-name:var(--font-display)] text-xl text-stone-800 dark:text-cyan-100">
+          <div className="my-4 min-h-0 flex-1 overflow-hidden">
+            <h3 className="line-clamp-2 break-keep font-[family-name:var(--font-display)] text-lg leading-snug text-stone-800 sm:text-xl dark:text-cyan-100">
               {title}
             </h3>
-            <p className="mt-2 line-clamp-4 text-sm italic text-stone-600 dark:text-zinc-300">
+            <p className="mt-2 line-clamp-3 text-sm italic leading-relaxed text-stone-600 dark:text-zinc-300">
               {message}
             </p>
             {nextPlaceName && (
-              <p className="mt-2 text-[11px] text-violet-500 dark:text-cyan-400">
+              <p className="mt-2 line-clamp-1 text-[11px] text-violet-500 dark:text-cyan-400">
                 {t.postcard.nextPlaceLabel}: {nextPlaceName}
               </p>
             )}
           </div>
-          <p className="text-[10px] text-stone-400 dark:text-zinc-500">
+          <p className="shrink-0 text-[10px] text-stone-400 dark:text-zinc-500">
             {onOpen ? t.postcard.tapToOpen : t.postcard.tapToFlip}
           </p>
         </div>

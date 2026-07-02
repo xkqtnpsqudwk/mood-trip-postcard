@@ -29,7 +29,7 @@ export const translations = {
       signupError: "Couldn't sign up. That username may already be taken.",
       logout: "Log out",
       guestLabel: "Browsing as guest",
-      postcardLoginPrompt: "Log in to save this trip as a postcard.",
+      postcardLoginPrompt: "Log in when you're ready to save a visit as a postcard.",
     },
     personalization: {
       heading: "My travel style",
@@ -61,9 +61,10 @@ export const translations = {
       avoidSummaryLabel: "You'd rather avoid",
       spotsHeading: "Spots that match your feeling",
       continuationHeading: "Where to next on this trip?",
-      visitCta: "I visited this place →",
-      visitCtaGuest: "Log in to save as a postcard →",
+      visitCta: "Write a postcard after visiting →",
+      visitCtaGuest: "Write a postcard after visiting →",
       startOver: "Start over with a new mood",
+      dismiss: "Just keep the recommendations",
       endTrip: "Finish this trip",
       noMatches:
         "We couldn't find a strong place match yet. Try describing your mood with a little more detail.",
@@ -72,9 +73,9 @@ export const translations = {
       avoidWarningPrefix: "Heads up:",
     },
     postcardCreator: {
-      heading: "How was it?",
+      heading: "After you visit, how was it?",
       subheading:
-        "Write a short note about your visit, and we'll turn it into a postcard.",
+        "When you've been there, write a short note about the visit and we'll turn it into a postcard.",
       placeholder: "The light through the trees felt like a quiet apology...",
       back: "Back",
       submit: "Create my postcard",
@@ -139,7 +140,7 @@ export const translations = {
       signupError: "가입하지 못했어요. 이미 사용 중인 아이디일 수 있어요.",
       logout: "로그아웃",
       guestLabel: "게스트로 이용 중",
-      postcardLoginPrompt: "엽서를 만들려면 로그인이 필요해요.",
+      postcardLoginPrompt: "방문 기록을 엽서로 남길 준비가 되면 로그인해주세요.",
     },
     personalization: {
       heading: "나의 여행 스타일",
@@ -171,9 +172,10 @@ export const translations = {
       avoidSummaryLabel: "피하고 싶은 것",
       spotsHeading: "지금 기분과 어울리는 장소",
       continuationHeading: "다음 정거장은 어디로 가볼까요?",
-      visitCta: "이곳을 다녀왔어요 →",
-      visitCtaGuest: "로그인하고 엽서 만들기 →",
+      visitCta: "다녀온 뒤 엽서 쓰기 →",
+      visitCtaGuest: "다녀온 뒤 엽서 쓰기 →",
       startOver: "새로운 기분으로 다시 시작하기",
+      dismiss: "추천만 보고 끝내기",
       endTrip: "여행 마무리하기",
       noMatches:
         "아직 강하게 맞는 장소를 찾지 못했어요. 기분을 조금 더 자세히 적어 다시 시도해보세요.",
@@ -181,8 +183,8 @@ export const translations = {
       avoidWarningPrefix: "참고:",
     },
     postcardCreator: {
-      heading: "다녀와 보니 어떠셨나요?",
-      subheading: "짧은 소감을 적어주시면, 엽서로 만들어드릴게요.",
+      heading: "다녀온 뒤, 어떠셨나요?",
+      subheading: "방문 후 짧은 소감을 적어주시면, 엽서로 만들어드릴게요.",
       placeholder: "나무 사이로 스며드는 빛이 조용한 위로처럼 느껴졌어요...",
       back: "뒤로",
       submit: "엽서 만들기",

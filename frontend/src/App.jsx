@@ -161,6 +161,11 @@ function AppContent() {
     setActiveTab("archive");
   };
 
+  const handleDismissRecommendations = () => {
+    resetFlow();
+    setView("landing");
+  };
+
   const hasRemainingStops = (analyzeResult?.places || []).some(
     (place) => !visitedPlaceIds.includes(place.id)
   );
@@ -246,6 +251,7 @@ function AppContent() {
                 onSelectPlace={handleSelectPlace}
                 onStartOver={resetFlow}
                 onEndTrip={handleEndTrip}
+                onDismiss={handleDismissRecommendations}
               />
             )}
             {step === "loginRequired" && selectedPlace && (
