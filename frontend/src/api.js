@@ -31,28 +31,13 @@ export const fetchMe = () => api.get("/auth/me").then((res) => res.data);
 
 export const fetchPreferences = () => api.get("/preferences").then((res) => res.data);
 
-export const savePreferences = ({ availableTime, mobility, environment, avoid, preferences }) =>
-  api
-    .put("/preferences", {
-      available_time: availableTime || null,
-      mobility: mobility || null,
-      environment: environment || null,
-      avoid: avoid || [],
-      preferences: preferences || [],
-    })
-    .then((res) => res.data);
+export const savePreferences = (styleText) =>
+  api.put("/preferences", { style_text: styleText || "" }).then((res) => res.data);
 
 export const analyzeMood = ({ city, moodText, language }) =>
   api.post("/analyze", { city, mood_text: moodText, language }).then((res) => res.data);
 
-export const createPostcard = (
-  city,
-  placeId,
-  review,
-  language,
-  tripId,
-  nextPlaceId
-) =>
+export const createPostcard = (city, placeId, review, language, tripId) =>
   api
     .post("/postcard", {
       city,
@@ -60,8 +45,16 @@ export const createPostcard = (
       review,
       language,
       trip_id: tripId || null,
-      next_place_id: nextPlaceId || null,
     })
+    .then((res) => res.data);
+
+export const updatePostcardNextPlace = (postcardId, nextPlaceId, language) =>
+  api
+    .patch(
+      `/postcard/${postcardId}/next-place`,
+      { next_place_id: nextPlaceId },
+      { params: { language } }
+    )
     .then((res) => res.data);
 
 export const fetchArchive = (language) =>

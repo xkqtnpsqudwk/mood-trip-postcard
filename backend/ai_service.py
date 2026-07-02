@@ -74,65 +74,58 @@ def analyze_mood(
     mood_text: str,
     language: str = "en",
     *,
-    available_time: str | None = None,
-    mobility: str | None = None,
-    environment: str | None = None,
-    preferences: list[str] | None = None,
-    avoid: list[str] | None = None,
+    style_text: str | None = None,
 ) -> dict:
     """Analyze the traveler's free-text mood sentence, optionally alongside a
-    saved travel-style profile (My Page preferences), and return bilingual
-    tags plus a bilingual clue.
+    saved free-text travel-style description (My Page), and return bilingual
+    tags, an avoid list, and a bilingual clue.
 
-    Any saved profile fields (available_time/mobility/environment/preferences/
-    avoid) are already canonical codes from a fixed vocabulary (see tags.py)
-    and are matched against place tags directly by the caller without going
-    through the AI - they are only passed here as extra context so the clue
-    reads naturally. This call's real job is to read the free-text mood_text
-    and (a) extract 3-5 short emotional/vibe keywords that capture the
-    traveler's feeling, and (b) write one poetic metaphorical clue sentence
-    that hints at the kind of place they should visit.
+    style_text is whatever the traveler wrote about their general travel
+    style (e.g. "I like quiet riverside walks and avoid crowds") - written
+    like a prompt, not picked from a fixed set of options. This call reads
+    both mood_text (how they feel right now) and style_text (how they
+    generally like to travel) together and:
+    (a) extracts 3-6 short vibe/preference keywords blending both,
+    (b) extracts 0-4 "avoid" keywords ONLY from a fixed small vocabulary
+        (crowded, far, expensive, complex_route, long_wait, long_distance,
+        too_touristy) when clearly implied, so they can be matched exactly
+        against place data,
+    (c) writes one poetic metaphorical clue sentence that hints at the kind
+        of place they should visit.
 
-    Returns: {"tags": [{"en": str, "ko": str}, ...], "clue": {"en": str, "ko": str}}
+    Returns: {"tags": [{"en": str, "ko": str}, ...], "avoid": [str, ...],
+              "clue": {"en": str, "ko": str}}
     """
     client = _get_client()
+    avoid_vocab = ", ".join(tags.AVOID.keys())
+    preference_vocab = ", ".join(tags.PREFERENCES.keys())
     system_prompt = (
         "You are an emotionally perceptive travel companion. Given a city, a "
-        "traveler's mood description, and optionally their saved travel-style "
-        "preferences, extract 3-5 short emotional/vibe keywords that capture "
-        "their feeling, and write one poetic metaphorical clue sentence that "
-        "hints at the kind of place they should visit. Return both English "
-        "and Korean for display. The English tag must be lowercase and short "
-        "because it is used for matching; the Korean tag must be the same "
-        "meaning translated naturally for display, with no hashtag. English "
-        "text must use English only. Korean text must use Korean only, "
-        "except place names when needed. "
+        "traveler's current mood, and optionally a saved free-text description "
+        "of their general travel style, do three things. First, extract 3-6 "
+        "short emotional/vibe/preference keywords that capture how they feel "
+        "and what they like, blending both the current mood and the saved "
+        "style; when a keyword naturally matches one of these known place "
+        f"tags, prefer that exact word: {preference_vocab}. Second, extract "
+        "0-4 'avoid' keywords, but ONLY from this fixed list, and ONLY when "
+        f"clearly implied by the mood or saved style: {avoid_vocab}. Do not "
+        "invent avoid keywords outside that list; return an empty avoid list "
+        "if nothing is clearly implied. Third, write one poetic metaphorical "
+        "clue sentence that hints at the kind of place they should visit. "
+        "Return tags with both English and Korean for display. The English "
+        "tag must be lowercase and short because it is used for matching; "
+        "the Korean tag must be the same meaning translated naturally for "
+        "display, with no hashtag. English text must use English only. "
+        "Korean text must use Korean only, except place names when needed. "
         "Respond with ONLY a JSON object in this exact shape: "
         '{"tags": [{"en": "excited", "ko": "신나는"}], '
+        '"avoid": ["crowded"], '
         '"clue": {"en": "a poetic sentence", "ko": "같은 의미의 한국어 문장"}}'
     )
 
-    context_lines = [f"City: {city}", f"Mood: {mood_text}"]
-    if available_time:
-        context_lines.append(
-            f"Saved preference - available time: {tags.label(tags.AVAILABLE_TIME, available_time, 'en')}"
-        )
-    if mobility:
-        context_lines.append(
-            f"Saved preference - mobility: {tags.label(tags.MOBILITY, mobility, 'en')}"
-        )
-    if environment:
-        context_lines.append(
-            f"Saved preference - environment: {tags.label(tags.ENVIRONMENT, environment, 'en')}"
-        )
-    if preferences:
-        context_lines.append(
-            f"Saved preference - likes: {', '.join(tags.labels(tags.PREFERENCES, preferences, 'en'))}"
-        )
-    if avoid:
-        context_lines.append(
-            f"Saved preference - avoids: {', '.join(tags.labels(tags.AVOID, avoid, 'en'))}"
-        )
+    context_lines = [f"City: {city}", f"Current mood: {mood_text}"]
+    if style_text and style_text.strip():
+        context_lines.append(f"Saved travel style: {style_text.strip()}")
     context_lines.append(f"Preferred UI language for tone reference: {_language_name(language)}")
     user_prompt = "\n".join(context_lines)
 
@@ -147,8 +140,13 @@ def analyze_mood(
     )
     content = completion.choices[0].message.content
     data = _extract_json(content)
+    valid_avoid = set(tags.AVOID.keys())
+    avoid_out = [
+        str(a).strip().lower() for a in data.get("avoid", []) if str(a).strip().lower() in valid_avoid
+    ]
     return {
         "tags": _localized_tags(data.get("tags", [])),
+        "avoid": avoid_out,
         "clue": _localized_text(data.get("clue", "")),
     }
 
@@ -205,9 +203,15 @@ def generate_postcard(
     }
 
 
-def generate_postcard_image(city: str, place_name: str, review: str) -> str | None:
+def generate_postcard_image(city: str, place_name: str, message: str) -> str | None:
     """Generate a postcard photo via NVIDIA's hosted FLUX.1-dev NIM and return
     base64-encoded JPEG data.
+
+    `message` should be the English postcard message from generate_postcard()
+    (not the traveler's raw review) - it's already polished, vivid, English
+    prose written specifically to evoke the mood, which makes a much better
+    image prompt than the raw review and sidesteps FLUX misreading a
+    non-English review.
 
     Returns None (rather than raising) on any failure, so a missing key or a
     slow/failing image provider never blocks postcard creation.
@@ -218,7 +222,7 @@ def generate_postcard_image(city: str, place_name: str, review: str) -> str | No
 
     prompt = (
         f"A beautiful travel postcard photograph of {place_name} in {city}, "
-        f"evoking this feeling: {review}. Warm painterly light, postcard "
+        f"evoking this feeling: {message}. Warm painterly light, postcard "
         "aesthetic, no text, no words, no writing anywhere in the image."
     )
 

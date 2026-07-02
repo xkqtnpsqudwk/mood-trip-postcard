@@ -20,19 +20,14 @@ export default function RecommendationView({
   result,
   visitedPlaceIds = [],
   isContinuation = false,
+  requireLogin = false,
   onSelectPlace,
   onStartOver,
   onEndTrip,
 }) {
   const { t, lang } = useLanguage();
   if (!result) return null;
-  const {
-    clue,
-    tags,
-    situation_tags: situationTags,
-    avoid_tags: avoidTags,
-    places: allPlaces,
-  } = result;
+  const { clue, tags, avoid_tags: avoidTags, places: allPlaces } = result;
   const places = allPlaces.filter((place) => !visitedPlaceIds.includes(place.id));
 
   return (
@@ -56,24 +51,14 @@ export default function RecommendationView({
             ))}
           </div>
         )}
-        {(situationTags?.length > 0 || avoidTags?.length > 0) && (
-          <div className="mt-4 space-y-1 text-xs text-stone-500 dark:text-zinc-400">
-            {situationTags?.length > 0 && (
-              <p>
-                <span className="font-semibold text-stone-600 dark:text-zinc-300">
-                  {t.recommendation.situationSummaryLabel}:
-                </span>{" "}
-                {situationTags.map((tag) => localizedTag(tag, lang, t)).join(" · ")}
-              </p>
-            )}
-            {avoidTags?.length > 0 && (
-              <p>
-                <span className="font-semibold text-stone-600 dark:text-zinc-300">
-                  {t.recommendation.avoidSummaryLabel}:
-                </span>{" "}
-                {avoidTags.map((tag) => localizedTag(tag, lang, t)).join(" · ")}
-              </p>
-            )}
+        {avoidTags?.length > 0 && (
+          <div className="mt-4 text-xs text-stone-500 dark:text-zinc-400">
+            <p>
+              <span className="font-semibold text-stone-600 dark:text-zinc-300">
+                {t.recommendation.avoidSummaryLabel}:
+              </span>{" "}
+              {avoidTags.map((tag) => localizedTag(tag, lang, t)).join(" · ")}
+            </p>
           </div>
         )}
       </div>
@@ -97,13 +82,15 @@ export default function RecommendationView({
                 </span>
                 {place.type && (
                   <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-500 dark:bg-cyan-950/50 dark:text-cyan-300">
-                    {place.type}
+                    {localized(place.type_i18n, lang) || place.type}
                   </span>
                 )}
               </div>
-              {place.duration_labels?.length > 0 && (
+              {(localized(place.duration_label_i18n, lang) ||
+                place.duration_labels?.join(" / ")) && (
                 <span className="mt-1 text-[11px] text-stone-400 dark:text-zinc-500">
-                  {place.duration_labels.join(" / ")}
+                  {localized(place.duration_label_i18n, lang) ||
+                    place.duration_labels.join(" / ")}
                 </span>
               )}
               <span className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
@@ -112,18 +99,21 @@ export default function RecommendationView({
               <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
                 {localized(place.mood_tags_i18n, lang) || place.mood_tags}
               </span>
-              {place.reason && (
+              {(localized(place.reason_i18n, lang) || place.reason) && (
                 <p className="mt-3 text-xs italic text-stone-500 dark:text-zinc-400">
-                  {place.reason}
+                  {localized(place.reason_i18n, lang) || place.reason}
                 </p>
               )}
-              {place.avoid_warnings?.length > 0 && (
+              {(localized(place.avoid_warning_i18n, lang) ||
+                place.avoid_warnings?.join(", ")) && (
                 <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-                  {t.recommendation.avoidWarningPrefix} {place.avoid_warnings.join(", ")}
+                  {t.recommendation.avoidWarningPrefix}{" "}
+                  {localized(place.avoid_warning_i18n, lang) ||
+                    place.avoid_warnings.join(", ")}
                 </p>
               )}
               <span className="mt-4 text-sm font-medium text-rose-400 dark:text-cyan-400">
-                {t.recommendation.visitCta}
+                {requireLogin ? t.recommendation.visitCtaGuest : t.recommendation.visitCta}
               </span>
             </button>
           ))}

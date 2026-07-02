@@ -3,10 +3,14 @@ import { createContext, useContext, useEffect, useState } from "react";
 const ThemeContext = createContext(null);
 const STORAGE_KEY = "mood-trip-postcard:theme";
 
+const getSystemTheme = () =>
+  window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "dark" || stored === "light" ? stored : "light";
+    if (stored === "dark" || stored === "light") return stored;
+    return getSystemTheme();
   });
 
   useEffect(() => {

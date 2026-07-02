@@ -13,42 +13,21 @@ AVAILABLE_TIME = {
     "half_day": {"en": "half a day", "ko": "반나절"},
 }
 
-MOBILITY = {
-    "near": {"en": "prefers nearby spots", "ko": "가까운 곳 위주"},
-    "moderate_walk": {"en": "okay with some walking", "ko": "조금 걸어도 괜찮음"},
-    "far_walk": {"en": "okay with a lot of walking", "ko": "오래 걸어도 괜찮음"},
-}
-
-ENVIRONMENT = {
-    "indoor": {"en": "prefers indoors", "ko": "실내 선호"},
-    "outdoor": {"en": "prefers outdoors", "ko": "야외 선호"},
-    "any": {"en": "no preference", "ko": "상관없음"},
-}
-
-# 활동 취향 + 분위기 취향 + 선호 장소 (카페는 두 목록에 겹쳐 등장하므로 코드 하나로 통합)
+# 하나로 통합된 취향 목록. 예전에는 활동/분위기/선호장소 3개 카테고리, 22개
+# 항목으로 나뉘어 있었는데, 실제로 places 시드 데이터의 preference_tags에
+# 쓰이는 코드는 이 10개뿐이었음 - 나머지 절반은 어떤 장소와도 매칭되지 않는
+# 죽은 옵션이라 애매하게 느껴졌음. 실사용 코드만 남겨 하나의 목록으로 정리.
 PREFERENCES = {
     "walking": {"en": "walking", "ko": "산책"},
+    "riverside": {"en": "riverside", "ko": "강변"},
     "photo": {"en": "photography", "ko": "사진"},
-    "cafe": {"en": "cafes", "ko": "카페"},
+    "quiet": {"en": "quiet", "ko": "조용한"},
+    "night_view": {"en": "night views", "ko": "야경"},
     "exhibition": {"en": "exhibitions", "ko": "전시"},
     "shopping": {"en": "shopping", "ko": "쇼핑"},
     "reading": {"en": "reading", "ko": "독서"},
-    "night_view": {"en": "night views", "ko": "야경"},
+    "cafe": {"en": "cafes", "ko": "카페"},
     "history": {"en": "history", "ko": "역사 탐방"},
-    "quiet": {"en": "quiet", "ko": "조용한"},
-    "sentimental": {"en": "sentimental", "ko": "감성적인"},
-    "lively": {"en": "lively", "ko": "활기찬"},
-    "exotic": {"en": "exotic", "ko": "이국적인"},
-    "natural": {"en": "natural", "ko": "자연적인"},
-    "local": {"en": "local", "ko": "로컬한"},
-    "artistic": {"en": "artistic", "ko": "예술적인"},
-    "riverside": {"en": "riverside", "ko": "강변"},
-    "park": {"en": "park", "ko": "공원"},
-    "alley": {"en": "alleyways", "ko": "골목"},
-    "bookstore": {"en": "bookstores", "ko": "서점"},
-    "gallery": {"en": "galleries", "ko": "미술관"},
-    "market": {"en": "markets", "ko": "시장"},
-    "viewpoint": {"en": "viewpoints", "ko": "전망대"},
 }
 
 # 하나로 통합된 회피 요소 목록 (예전에는 "여행 상황"과 "취향" 두 곳에서 겹치는

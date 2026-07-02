@@ -60,19 +60,11 @@ class UserOut(BaseModel):
 
 
 class PreferencesIn(BaseModel):
-    available_time: str | None = None
-    mobility: str | None = None
-    environment: str | None = None
-    avoid: list[str] = []
-    preferences: list[str] = []
+    style_text: str = ""
 
 
 class PreferencesOut(BaseModel):
-    available_time: str | None = None
-    mobility: str | None = None
-    environment: str | None = None
-    avoid: list[str] = []
-    preferences: list[str] = []
+    style_text: str = ""
 
 
 class LocalizedText(BaseModel):
@@ -99,15 +91,16 @@ class PlaceOut(BaseModel):
     type: str = ""
     type_i18n: LocalizedText
     duration_labels: list[str] = []
+    duration_label_i18n: LocalizedText
     reason: str = ""
     reason_i18n: LocalizedText
     avoid_warnings: list[str] = []
+    avoid_warning_i18n: LocalizedText
 
 
 class AnalyzeResponse(BaseModel):
     clue: LocalizedText
     tags: list[LocalizedTag]
-    situation_tags: list[LocalizedTag] = []
     avoid_tags: list[LocalizedTag] = []
     places: list[PlaceOut]
 
@@ -118,7 +111,10 @@ class PostcardRequest(BaseModel):
     review: str
     language: str = "en"
     trip_id: str | None = None
-    next_place_id: int | None = None
+
+
+class NextPlaceRequest(BaseModel):
+    next_place_id: int
 
 
 class PostcardOut(BaseModel):
@@ -201,34 +197,15 @@ def get_preferences(user: sqlite3.Row = Depends(require_user)) -> PreferencesOut
     row = database.get_user_preferences(user["id"])
     if row is None:
         return PreferencesOut()
-    return PreferencesOut(
-        available_time=row["available_time"] or None,
-        mobility=row["mobility"] or None,
-        environment=row["environment"] or None,
-        avoid=[v for v in (row["avoid"] or "").split(",") if v],
-        preferences=[v for v in (row["preferences"] or "").split(",") if v],
-    )
+    return PreferencesOut(style_text=_row_value(row, "style_text"))
 
 
 @app.put("/api/preferences", response_model=PreferencesOut)
 def put_preferences(
     payload: PreferencesIn, user: sqlite3.Row = Depends(require_user)
 ) -> PreferencesOut:
-    row = database.upsert_user_preferences(
-        user_id=user["id"],
-        available_time=payload.available_time or "",
-        mobility=payload.mobility or "",
-        environment=payload.environment or "",
-        avoid=",".join(payload.avoid),
-        preferences=",".join(payload.preferences),
-    )
-    return PreferencesOut(
-        available_time=row["available_time"] or None,
-        mobility=row["mobility"] or None,
-        environment=row["environment"] or None,
-        avoid=[v for v in (row["avoid"] or "").split(",") if v],
-        preferences=[v for v in (row["preferences"] or "").split(",") if v],
-    )
+    row = database.upsert_user_preferences(user_id=user["id"], style_text=payload.style_text)
+    return PreferencesOut(style_text=_row_value(row, "style_text"))
 
 
 EMOTION_TAG_ALIASES = {
@@ -330,6 +307,7 @@ def _row_to_place(
     avoid_conflicts: list[str] | None = None,
 ) -> PlaceOut:
     duration_codes = [c for c in _row_value(row, "duration").split(",") if c]
+    avoid_conflicts = avoid_conflicts or []
     return PlaceOut(
         id=row["id"],
         city=row["city"],
@@ -344,9 +322,17 @@ def _row_to_place(
         type=_localized(row, "type", language),
         type_i18n=_localized_pair(row, "type"),
         duration_labels=tags.labels(tags.AVAILABLE_TIME, duration_codes, language),
+        duration_label_i18n=LocalizedText(
+            en=" / ".join(tags.labels(tags.AVAILABLE_TIME, duration_codes, "en")),
+            ko=" / ".join(tags.labels(tags.AVAILABLE_TIME, duration_codes, "ko")),
+        ),
         reason=_localized(row, "reason", language),
         reason_i18n=_localized_pair(row, "reason"),
-        avoid_warnings=tags.labels(tags.AVOID, avoid_conflicts or [], language),
+        avoid_warnings=tags.labels(tags.AVOID, avoid_conflicts, language),
+        avoid_warning_i18n=LocalizedText(
+            en=", ".join(tags.labels(tags.AVOID, avoid_conflicts, "en")),
+            ko=", ".join(tags.labels(tags.AVOID, avoid_conflicts, "ko")),
+        ),
     )
 
 
@@ -405,54 +391,35 @@ def _tag_out(vocab: dict, code: str) -> LocalizedTag:
     return LocalizedTag(en=entry.get("en", code), ko=entry.get("ko", code))
 
 
-def _combine_tags(*groups: list[LocalizedTag]) -> list[LocalizedTag]:
-    seen: set[str] = set()
-    combined: list[LocalizedTag] = []
-    for group in groups:
-        for tag in group:
-            key = tag.en.strip().lower()
-            if key and key not in seen:
-                seen.add(key)
-                combined.append(tag)
-    return combined
-
-
 def _rank_places(
     places: list[sqlite3.Row],
     vibe_tags: list[str],
-    situation_codes: list[str],
     avoid_codes: list[str],
-    available_time: str | None = None,
     language: str = "en",
 ) -> list[PlaceOut]:
-    """Score places by overlap across three axes and penalize avoid conflicts.
+    """Score places by vibe overlap and penalize avoid conflicts.
 
-    - vibe: user's emotions + preferences + AI-extracted free-text tags,
-      matched (with alias expansion) against a place's mood_tags + preference_tags.
-    - situation: companions/mobility/environment matched against situation_tags.
-    - avoid: user's avoid selections matched against a place's avoid_tags,
-      which lowers (not eliminates) that place's ranking.
+    - vibe: AI-extracted tags from the current mood plus the traveler's saved
+      free-text travel style, matched (with alias expansion) against a
+      place's mood_tags + preference_tags.
+    - avoid: AI-extracted avoid keywords (from a fixed vocabulary) matched
+      against a place's avoid_tags, which lowers (not eliminates) that
+      place's ranking.
     """
     user_vibe = _expand_tags(vibe_tags)
-    user_situation = {c.strip().lower() for c in situation_codes if c}
     user_avoid = {c.strip().lower() for c in avoid_codes if c}
 
     scored = []
     for place in places:
         place_vibe = _tag_set(place["mood_tags"]) | _tag_set(_row_value(place, "preference_tags"))
-        place_situation = _code_set(_row_value(place, "situation_tags"))
         place_avoid = _code_set(_row_value(place, "avoid_tags"))
-        place_duration = [c for c in _row_value(place, "duration").split(",") if c]
 
         vibe_overlap = len(user_vibe & place_vibe)
         if vibe_overlap == 0:
             continue
 
-        situation_overlap = len(user_situation & place_situation)
-        duration_match = 1 if available_time and available_time in place_duration else 0
         conflicts = sorted(user_avoid & place_avoid)
-
-        score = vibe_overlap * 2 + situation_overlap + duration_match - len(conflicts) * 2
+        score = vibe_overlap * 2 - len(conflicts) * 2
         scored.append((score, place, conflicts))
 
     scored.sort(key=lambda triple: triple[0], reverse=True)
@@ -485,53 +452,30 @@ def analyze(
             status_code=404, detail=f"No places found for city '{payload.city}'"
         )
 
-    # Logged-in users can save a personalization profile (My Page) that is
-    # applied automatically here; guests get plain mood-text matching.
+    # Logged-in users can save a free-text travel-style profile (My Page)
+    # that is applied automatically here; guests get plain mood-text matching.
     prefs_row = database.get_user_preferences(user["id"]) if user else None
-    available_time = prefs_row["available_time"] if prefs_row else None
-    mobility = prefs_row["mobility"] if prefs_row else None
-    environment = prefs_row["environment"] if prefs_row else None
-    saved_avoid = [v for v in (prefs_row["avoid"] or "").split(",") if v] if prefs_row else []
-    saved_preferences = (
-        [v for v in (prefs_row["preferences"] or "").split(",") if v] if prefs_row else []
-    )
+    style_text = _row_value(prefs_row, "style_text") if prefs_row else ""
 
     try:
         analysis = ai_service.analyze_mood(
             payload.city,
             payload.mood_text,
             payload.language,
-            available_time=available_time,
-            mobility=mobility,
-            environment=environment,
-            preferences=saved_preferences,
-            avoid=saved_avoid,
+            style_text=style_text,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {exc}") from exc
 
-    ai_tag_out = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in analysis["tags"]]
-    preference_tag_out = [_tag_out(tags.PREFERENCES, code) for code in saved_preferences]
-    combined_tags = _combine_tags(preference_tag_out, ai_tag_out)
+    combined_tags = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in analysis["tags"]]
+    avoid_tag_out = [_tag_out(tags.AVOID, code) for code in analysis["avoid"]]
 
-    situation_tag_out = []
-    if available_time:
-        situation_tag_out.append(_tag_out(tags.AVAILABLE_TIME, available_time))
-    if mobility:
-        situation_tag_out.append(_tag_out(tags.MOBILITY, mobility))
-    if environment:
-        situation_tag_out.append(_tag_out(tags.ENVIRONMENT, environment))
-    avoid_tag_out = [_tag_out(tags.AVOID, code) for code in saved_avoid]
-
-    vibe_matching_tags = _english_tags(saved_preferences) + _english_tags(analysis["tags"])
-    situation_codes = [c for c in (mobility, environment) if c]
+    vibe_matching_tags = _english_tags(analysis["tags"])
 
     ranked = _rank_places(
         places,
         vibe_tags=vibe_matching_tags,
-        situation_codes=situation_codes,
-        avoid_codes=saved_avoid,
-        available_time=available_time,
+        avoid_codes=analysis["avoid"],
         language=payload.language,
     )
     # Return a larger pool than a single card grid needs so the frontend can
@@ -541,7 +485,6 @@ def analyze(
     return AnalyzeResponse(
         clue=analysis["clue"],
         tags=combined_tags,
-        situation_tags=situation_tag_out,
         avoid_tags=avoid_tag_out,
         places=top_places,
     )
@@ -549,7 +492,7 @@ def analyze(
 
 @app.post("/api/postcard", response_model=PostcardOut)
 def create_postcard(
-    payload: PostcardRequest, user: sqlite3.Row | None = Depends(get_current_user)
+    payload: PostcardRequest, user: sqlite3.Row = Depends(require_user)
 ) -> PostcardOut:
     if not payload.review.strip():
         raise HTTPException(status_code=400, detail="review must not be empty")
@@ -583,18 +526,14 @@ def create_postcard(
         ) from exc
 
     image_base64 = ai_service.generate_postcard_image(
-        city=payload.city, place_name=place["name"], review=payload.review
+        city=payload.city, place_name=place["name"], message=generated["message"]["en"]
     )
-
-    next_place = None
-    if payload.next_place_id is not None:
-        next_place = next((p for p in places if p["id"] == payload.next_place_id), None)
-    next_place_id = next_place["id"] if next_place else None
-    next_place_name_en = _localized(next_place, "name", "en") if next_place else None
-    next_place_name_ko = _localized(next_place, "name", "ko") if next_place else None
 
     trip_id = payload.trip_id or str(uuid.uuid4())
 
+    # next_place is filled in later, via update_postcard_next_place, once the
+    # traveler actually visits another stop on this trip — it should never be
+    # a prediction made before that stop is known.
     row = database.insert_postcard(
         city=payload.city,
         place_name=place_name,
@@ -608,13 +547,36 @@ def create_postcard(
         message_en=generated["message"]["en"],
         title_ko=generated["title"]["ko"],
         message_ko=generated["message"]["ko"],
-        next_place_id=next_place_id,
-        next_place_name_en=next_place_name_en,
-        next_place_name_ko=next_place_name_ko,
-        user_id=user["id"] if user else None,
+        user_id=user["id"],
     )
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, payload.language, places_by_id)
+
+
+@app.patch("/api/postcard/{postcard_id}/next-place", response_model=PostcardOut)
+def update_postcard_next_place(
+    postcard_id: int,
+    payload: NextPlaceRequest,
+    language: str = "en",
+    user: sqlite3.Row = Depends(require_user),
+) -> PostcardOut:
+    postcard_row = database.get_postcard_by_id(postcard_id)
+    if postcard_row is None or postcard_row["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Postcard not found")
+
+    places = database.get_places_by_city(postcard_row["city"])
+    next_place = next((p for p in places if p["id"] == payload.next_place_id), None)
+    if next_place is None:
+        raise HTTPException(status_code=404, detail="Place not found")
+
+    row = database.update_postcard_next_place(
+        postcard_id=postcard_id,
+        next_place_id=next_place["id"],
+        next_place_name_en=_localized(next_place, "name", "en"),
+        next_place_name_ko=_localized(next_place, "name", "ko"),
+    )
+    places_by_id = {p["id"]: p for p in places}
+    return _row_to_postcard(row, language, places_by_id)
 
 
 @app.get("/api/archive", response_model=list[PostcardOut])

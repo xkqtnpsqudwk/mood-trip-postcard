@@ -1,25 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from "../LanguageContext";
 import { fetchPreferences, savePreferences } from "../api";
-import { ChipGroup, FormSection } from "./ChipGroup";
-
-const AVAILABLE_TIME = ["under_30min", "1h", "2_3h", "half_day"];
-const MOBILITY = ["near", "moderate_walk", "far_walk"];
-const ENVIRONMENT = ["indoor", "outdoor", "any"];
-const ACTIVITY_PREFERENCES = ["walking", "photo", "cafe", "exhibition", "shopping", "reading", "night_view", "history"];
-const ATMOSPHERE_PREFERENCES = ["quiet", "sentimental", "lively", "exotic", "natural", "local", "artistic"];
-const PLACE_PREFERENCES = ["riverside", "park", "alley", "bookstore", "gallery", "market", "viewpoint"];
-const AVOID = ["crowded", "far", "expensive", "complex_route", "long_wait", "long_distance", "too_touristy"];
 
 export default function PersonalizationSettings() {
   const { t } = useLanguage();
   const p = t.personalization;
 
-  const [availableTime, setAvailableTime] = useState(null);
-  const [mobility, setMobility] = useState(null);
-  const [environment, setEnvironment] = useState(null);
-  const [avoid, setAvoid] = useState([]);
-  const [preferences, setPreferences] = useState([]);
+  const [styleText, setStyleText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
@@ -28,11 +15,7 @@ export default function PersonalizationSettings() {
     fetchPreferences()
       .then((data) => {
         if (isCancelled) return;
-        setAvailableTime(data.available_time || null);
-        setMobility(data.mobility || null);
-        setEnvironment(data.environment || null);
-        setAvoid(data.avoid || []);
-        setPreferences(data.preferences || []);
+        setStyleText(data.style_text || "");
       })
       .catch(() => {});
     return () => {
@@ -40,17 +23,11 @@ export default function PersonalizationSettings() {
     };
   }, []);
 
-  const togglePick = (setSingle) => (value) =>
-    setSingle((prev) => (prev === value ? null : value));
-
-  const toggleMulti = (setList) => (value) =>
-    setList((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
-
   const handleSave = async () => {
     setIsSaving(true);
     setJustSaved(false);
     try {
-      await savePreferences({ availableTime, mobility, environment, avoid, preferences });
+      await savePreferences(styleText.trim());
       setJustSaved(true);
     } finally {
       setIsSaving(false);
@@ -64,72 +41,13 @@ export default function PersonalizationSettings() {
       </h2>
       <p className="mt-1 text-sm text-stone-500 dark:text-zinc-400">{p.subheading}</p>
 
-      <FormSection label={p.availableTimeLabel}>
-        <ChipGroup
-          options={AVAILABLE_TIME}
-          labels={p.availableTime}
-          selected={availableTime}
-          onSelect={togglePick(setAvailableTime)}
-        />
-      </FormSection>
-      <FormSection label={p.mobilityLabel}>
-        <ChipGroup
-          options={MOBILITY}
-          labels={p.mobility}
-          selected={mobility}
-          onSelect={togglePick(setMobility)}
-        />
-      </FormSection>
-      <FormSection label={p.environmentLabel}>
-        <ChipGroup
-          options={ENVIRONMENT}
-          labels={p.environment}
-          selected={environment}
-          onSelect={togglePick(setEnvironment)}
-        />
-      </FormSection>
-      <FormSection label={p.avoidLabel}>
-        <ChipGroup
-          options={AVOID}
-          labels={p.avoid}
-          selected={avoid}
-          onSelect={toggleMulti(setAvoid)}
-          multi
-        />
-      </FormSection>
-
-      <div className="mt-6 border-t border-stone-200 pt-5 dark:border-zinc-700/60">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-400 dark:text-fuchsia-400">
-          {p.preferenceHeading}
-        </h3>
-        <FormSection label={p.activityLabel}>
-          <ChipGroup
-            options={ACTIVITY_PREFERENCES}
-            labels={p.activity}
-            selected={preferences}
-            onSelect={toggleMulti(setPreferences)}
-            multi
-          />
-        </FormSection>
-        <FormSection label={p.atmosphereLabel}>
-          <ChipGroup
-            options={ATMOSPHERE_PREFERENCES}
-            labels={p.atmosphere}
-            selected={preferences}
-            onSelect={toggleMulti(setPreferences)}
-            multi
-          />
-        </FormSection>
-        <FormSection label={p.placeTypeLabel}>
-          <ChipGroup
-            options={PLACE_PREFERENCES}
-            labels={p.placeType}
-            selected={preferences}
-            onSelect={toggleMulti(setPreferences)}
-            multi
-          />
-        </FormSection>
-      </div>
+      <textarea
+        value={styleText}
+        onChange={(event) => setStyleText(event.target.value)}
+        placeholder={p.placeholder}
+        rows={6}
+        className="mt-6 w-full resize-none rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-800 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-fuchsia-500/20 dark:bg-zinc-950/50 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-fuchsia-400 dark:focus:ring-fuchsia-500/30"
+      />
 
       <button
         type="button"

@@ -10,7 +10,7 @@ import PersonalizationSettings from "./components/PersonalizationSettings";
 import { LanguageProvider, useLanguage } from "./LanguageContext";
 import { ThemeProvider, useTheme } from "./ThemeContext";
 import { AuthProvider, useAuth } from "./AuthContext";
-import { analyzeMood, createPostcard } from "./api";
+import { analyzeMood, createPostcard, updatePostcardNextPlace } from "./api";
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
@@ -41,11 +41,11 @@ function AccountControl({ onLoginClick }) {
 
   if (user) {
     return (
-      <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400">
-        <span>{user.username}</span>
+      <div className="inline-flex items-center gap-2 rounded-full bg-white/70 py-1 pl-3 pr-1 text-xs font-medium shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
+        <span className="text-stone-500 dark:text-zinc-400">{user.username}</span>
         <button
           onClick={logout}
-          className="rounded-full bg-white/70 px-3 py-1 font-medium shadow-md ring-1 ring-white/60 hover:text-stone-700 dark:bg-zinc-900/70 dark:ring-fuchsia-500/20 dark:hover:text-zinc-200"
+          className="rounded-full px-2 py-1 text-stone-400 hover:text-stone-700 dark:text-zinc-500 dark:hover:text-zinc-200"
         >
           {t.auth.logout}
         </button>
@@ -79,6 +79,7 @@ function AppContent() {
   const [archiveRefreshKey, setArchiveRefreshKey] = useState(0);
   const [tripId, setTripId] = useState(null);
   const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
+  const [lastPostcardId, setLastPostcardId] = useState(null);
 
   useEffect(() => {
     if (!isAuthLoading && user) setView("app");
@@ -98,6 +99,7 @@ function AppContent() {
     setError(null);
     setTripId(null);
     setVisitedPlaceIds([]);
+    setLastPostcardId(null);
   };
 
   const handleMoodSubmit = async (formState) => {
@@ -119,27 +121,25 @@ function AppContent() {
 
   const handleSelectPlace = (place) => {
     setSelectedPlace(place);
-    setStep("review");
+    setStep(user ? "review" : "loginRequired");
   };
 
   const handleReviewSubmit = async (review) => {
     setError(null);
     setIsCreatingPostcard(true);
     try {
-      const remaining = (analyzeResult?.places || []).filter(
-        (place) =>
-          place.id !== selectedPlace.id && !visitedPlaceIds.includes(place.id)
-      );
-      const nextPlaceId = remaining[0]?.id ?? null;
-      const postcard = await createPostcard(
-        city,
-        selectedPlace.id,
-        review,
-        lang,
-        tripId,
-        nextPlaceId
-      );
+      const postcard = await createPostcard(city, selectedPlace.id, review, lang, tripId);
+      if (lastPostcardId) {
+        try {
+          // Now that we know where the traveler actually went next, backfill
+          // the previous postcard's next-stop instead of showing a guess.
+          await updatePostcardNextPlace(lastPostcardId, selectedPlace.id, lang);
+        } catch {
+          // Best-effort: the previous postcard just won't show a next stop.
+        }
+      }
       setCreatedPostcard(postcard);
+      setLastPostcardId(postcard.id);
       setVisitedPlaceIds((ids) => [...ids, selectedPlace.id]);
       setStep("postcard");
       setArchiveRefreshKey((key) => key + 1);
@@ -180,7 +180,7 @@ function AppContent() {
           <p className="neon-text text-xs font-semibold uppercase tracking-[0.2em] text-rose-400 sm:tracking-[0.3em] dark:text-fuchsia-400">
             {t.appTitle}
           </p>
-          <div className="flex items-center gap-2 sm:absolute sm:right-0 sm:top-0">
+          <div className="flex items-center gap-2 sm:absolute sm:right-0 sm:-top-2">
             <AccountControl onLoginClick={() => setActiveTab("personalization")} />
             <ThemeToggle />
             <div className="inline-flex rounded-full bg-white/70 p-1 text-xs font-medium shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
@@ -242,10 +242,25 @@ function AppContent() {
                 result={analyzeResult}
                 visitedPlaceIds={visitedPlaceIds}
                 isContinuation={visitedPlaceIds.length > 0}
+                requireLogin={!user}
                 onSelectPlace={handleSelectPlace}
                 onStartOver={resetFlow}
                 onEndTrip={handleEndTrip}
               />
+            )}
+            {step === "loginRequired" && selectedPlace && (
+              <div className="mx-auto w-full max-w-md">
+                <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
+                  {t.auth.postcardLoginPrompt}
+                </p>
+                <AuthForm onSuccess={() => setStep("review")} />
+                <button
+                  onClick={() => setStep("recommend")}
+                  className="mx-auto mt-4 block text-center text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+                >
+                  {t.postcardCreator.back}
+                </button>
+              </div>
             )}
             {step === "review" && selectedPlace && (
               <PostcardCreator
