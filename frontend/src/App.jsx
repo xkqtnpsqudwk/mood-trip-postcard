@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Landing from "./components/Landing";
 import MoodForm from "./components/MoodForm";
 import RecommendationView from "./components/RecommendationView";
 import PostcardCreator from "./components/PostcardCreator";
 import Postcard from "./components/Postcard";
 import ArchiveTab from "./components/ArchiveTab";
+import AuthForm from "./components/AuthForm";
+import PersonalizationSettings from "./components/PersonalizationSettings";
 import { LanguageProvider, useLanguage } from "./LanguageContext";
 import { ThemeProvider, useTheme } from "./ThemeContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 import { analyzeMood, createPostcard } from "./api";
 
 function ThemeToggle() {
@@ -31,8 +35,38 @@ function ThemeToggle() {
   );
 }
 
+function AccountControl({ onLoginClick }) {
+  const { t } = useLanguage();
+  const { user, logout } = useAuth();
+
+  if (user) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400">
+        <span>{user.username}</span>
+        <button
+          onClick={logout}
+          className="rounded-full bg-white/70 px-3 py-1 font-medium shadow-md ring-1 ring-white/60 hover:text-stone-700 dark:bg-zinc-900/70 dark:ring-fuchsia-500/20 dark:hover:text-zinc-200"
+        >
+          {t.auth.logout}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={onLoginClick}
+      className="rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-stone-500 shadow-md ring-1 ring-white/60 hover:text-stone-700 dark:bg-zinc-900/70 dark:text-zinc-400 dark:ring-fuchsia-500/20 dark:hover:text-zinc-200"
+    >
+      {t.auth.loginHeading}
+    </button>
+  );
+}
+
 function AppContent() {
   const { lang, setLang, t } = useLanguage();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [view, setView] = useState("landing");
   const [activeTab, setActiveTab] = useState("create");
   const [step, setStep] = useState("form");
   const [city, setCity] = useState("");
@@ -46,9 +80,14 @@ function AppContent() {
   const [tripId, setTripId] = useState(null);
   const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
 
+  useEffect(() => {
+    if (!isAuthLoading && user) setView("app");
+  }, [isAuthLoading, user]);
+
   const tabs = [
     { id: "create", label: t.tabCreate },
     { id: "archive", label: t.tabArchive },
+    { id: "personalization", label: t.tabPersonalization },
   ];
 
   const resetFlow = () => {
@@ -126,6 +165,14 @@ function AppContent() {
     (place) => !visitedPlaceIds.includes(place.id)
   );
 
+  if (view === "landing") {
+    return (
+      <div className="flex min-h-dvh items-center justify-center px-4 py-10">
+        <Landing onContinue={() => setView("app")} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh px-4 py-6 sm:py-10">
       <header className="mx-auto max-w-3xl text-center sm:relative">
@@ -134,6 +181,7 @@ function AppContent() {
             {t.appTitle}
           </p>
           <div className="flex items-center gap-2 sm:absolute sm:right-0 sm:top-0">
+            <AccountControl onLoginClick={() => setActiveTab("personalization")} />
             <ThemeToggle />
             <div className="inline-flex rounded-full bg-white/70 p-1 text-xs font-medium shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
               {["ko", "en"].map((code) => (
@@ -183,7 +231,11 @@ function AppContent() {
         {activeTab === "create" && (
           <>
             {step === "form" && (
-              <MoodForm onSubmit={handleMoodSubmit} isLoading={isAnalyzing} />
+              <MoodForm
+                onSubmit={handleMoodSubmit}
+                isLoading={isAnalyzing}
+                onOpenPersonalization={() => setActiveTab("personalization")}
+              />
             )}
             {step === "recommend" && (
               <RecommendationView
@@ -238,6 +290,18 @@ function AppContent() {
         )}
 
         {activeTab === "archive" && <ArchiveTab refreshKey={archiveRefreshKey} />}
+
+        {activeTab === "personalization" &&
+          (user ? (
+            <PersonalizationSettings />
+          ) : (
+            <div className="mx-auto w-full max-w-md">
+              <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
+                {t.personalization.loginRequired}
+              </p>
+              <AuthForm />
+            </div>
+          ))}
       </main>
     </div>
   );
@@ -247,7 +311,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

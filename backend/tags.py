@@ -6,13 +6,6 @@ display text for the user's explicit selections without an AI call; only
 free-text mood input goes through the AI (see ai_service.analyze_mood).
 """
 
-COMPANIONS = {
-    "solo": {"en": "solo", "ko": "혼자"},
-    "friends": {"en": "with friends", "ko": "친구와"},
-    "couple": {"en": "with a partner", "ko": "연인과"},
-    "family": {"en": "with family", "ko": "가족과"},
-}
-
 AVAILABLE_TIME = {
     "under_30min": {"en": "30 minutes or less", "ko": "30분 이하"},
     "1h": {"en": "about 1 hour", "ko": "1시간"},
@@ -30,23 +23,6 @@ ENVIRONMENT = {
     "indoor": {"en": "prefers indoors", "ko": "실내 선호"},
     "outdoor": {"en": "prefers outdoors", "ko": "야외 선호"},
     "any": {"en": "no preference", "ko": "상관없음"},
-}
-
-EMOTIONS = {
-    "calm": {"en": "calm", "ko": "차분함"},
-    "excited": {"en": "excited", "ko": "설렘"},
-    "tired": {"en": "tired", "ko": "피곤함"},
-    "depressed": {"en": "down", "ko": "우울함"},
-    "stuffy": {"en": "stuffy", "ko": "답답함"},
-    "relaxed": {"en": "relaxed", "ko": "여유로움"},
-    "curious": {"en": "curious", "ko": "호기심"},
-    "energetic": {"en": "energetic", "ko": "활기참"},
-}
-
-EMOTION_INTENSITY = {
-    "weak": {"en": "mild", "ko": "약함"},
-    "medium": {"en": "moderate", "ko": "보통"},
-    "strong": {"en": "strong", "ko": "강함"},
 }
 
 # 활동 취향 + 분위기 취향 + 선호 장소 (카페는 두 목록에 겹쳐 등장하므로 코드 하나로 통합)
@@ -75,11 +51,12 @@ PREFERENCES = {
     "viewpoint": {"en": "viewpoints", "ko": "전망대"},
 }
 
-# 여행 상황의 "피하고 싶은 요소" + 취향의 "회피 요소" (겹치는 개념은 코드 공유: crowded/expensive)
+# 하나로 통합된 회피 요소 목록 (예전에는 "여행 상황"과 "취향" 두 곳에서 겹치는
+# 항목을 따로 물어봤는데, 여기 하나로 합쳐 중복 질문을 없앰)
 AVOID = {
-    "crowded": {"en": "crowded places", "ko": "사람 많은 곳 / 혼잡함"},
+    "crowded": {"en": "crowded places", "ko": "사람 많은 곳"},
     "far": {"en": "places that are too far", "ko": "너무 먼 곳"},
-    "expensive": {"en": "expensive places", "ko": "비싼 곳 / 높은 비용"},
+    "expensive": {"en": "expensive places", "ko": "비싼 곳"},
     "complex_route": {"en": "complicated routes", "ko": "복잡한 동선"},
     "long_wait": {"en": "long waits", "ko": "긴 대기"},
     "long_distance": {"en": "long travel distances", "ko": "긴 이동"},

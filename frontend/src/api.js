@@ -1,38 +1,49 @@
 import axios from "axios";
 
+const TOKEN_KEY = "mood-trip-postcard:token";
+
 const api = axios.create({
   baseURL: "/api",
   timeout: 90000,
 });
 
-export const analyzeMood = ({
-  city,
-  moodText,
-  language,
-  companions,
-  availableTime,
-  mobility,
-  environment,
-  avoid,
-  emotions,
-  emotionIntensity,
-  preferences,
-}) =>
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+
+export const signup = (username, password) =>
+  api.post("/auth/signup", { username, password }).then((res) => res.data);
+
+export const login = (username, password) =>
+  api.post("/auth/login", { username, password }).then((res) => res.data);
+
+export const logout = () => api.post("/auth/logout").then((res) => res.data);
+
+export const fetchMe = () => api.get("/auth/me").then((res) => res.data);
+
+export const fetchPreferences = () => api.get("/preferences").then((res) => res.data);
+
+export const savePreferences = ({ availableTime, mobility, environment, avoid, preferences }) =>
   api
-    .post("/analyze", {
-      city,
-      mood_text: moodText || "",
-      language,
-      companions: companions || null,
+    .put("/preferences", {
       available_time: availableTime || null,
       mobility: mobility || null,
       environment: environment || null,
       avoid: avoid || [],
-      emotions: emotions || [],
-      emotion_intensity: emotionIntensity || null,
       preferences: preferences || [],
     })
     .then((res) => res.data);
+
+export const analyzeMood = ({ city, moodText, language }) =>
+  api.post("/analyze", { city, mood_text: moodText, language }).then((res) => res.data);
 
 export const createPostcard = (
   city,

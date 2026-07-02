@@ -5,13 +5,14 @@ import uuid
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 load_dotenv()
 
 import ai_service
+import auth
 import database
 import tags
 
@@ -35,16 +36,43 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     city: str
-    mood_text: str = ""
+    mood_text: str
     language: str = "en"
-    companions: str | None = None
+
+
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthOut(BaseModel):
+    token: str
+    username: str
+
+
+class UserOut(BaseModel):
+    username: str
+
+
+class PreferencesIn(BaseModel):
     available_time: str | None = None
     mobility: str | None = None
     environment: str | None = None
-    emotions: list[str] = []
-    emotion_intensity: str | None = None
-    preferences: list[str] = []
     avoid: list[str] = []
+    preferences: list[str] = []
+
+
+class PreferencesOut(BaseModel):
+    available_time: str | None = None
+    mobility: str | None = None
+    environment: str | None = None
+    avoid: list[str] = []
+    preferences: list[str] = []
 
 
 class LocalizedText(BaseModel):
@@ -109,6 +137,98 @@ class PostcardOut(BaseModel):
     next_place_id: int | None = None
     next_place_name: str | None = None
     next_place_name_i18n: LocalizedText | None = None
+
+
+def get_current_user(authorization: str | None = Header(default=None)) -> sqlite3.Row | None:
+    """Optional auth: returns the user row for a valid bearer token, else None.
+    Endpoints that work for both guests and logged-in users depend on this."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        return None
+    return database.get_user_by_token(token)
+
+
+def require_user(user: sqlite3.Row | None = Depends(get_current_user)) -> sqlite3.Row:
+    """Required auth: raises 401 when no valid session is presented."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Login required")
+    return user
+
+
+@app.post("/api/auth/signup", response_model=AuthOut)
+def signup(payload: SignupRequest) -> AuthOut:
+    username = payload.username.strip()
+    if not username or not payload.password:
+        raise HTTPException(status_code=400, detail="username and password are required")
+    if len(payload.password) < 4:
+        raise HTTPException(status_code=400, detail="password must be at least 4 characters")
+    if database.get_user_by_username(username):
+        raise HTTPException(status_code=409, detail="username is already taken")
+
+    user = database.create_user(username, auth.hash_password(payload.password))
+    token = auth.generate_token()
+    database.create_session(token, user["id"])
+    return AuthOut(token=token, username=user["username"])
+
+
+@app.post("/api/auth/login", response_model=AuthOut)
+def login(payload: LoginRequest) -> AuthOut:
+    user = database.get_user_by_username(payload.username.strip())
+    if not user or not auth.verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    token = auth.generate_token()
+    database.create_session(token, user["id"])
+    return AuthOut(token=token, username=user["username"])
+
+
+@app.post("/api/auth/logout")
+def logout(authorization: str | None = Header(default=None)) -> dict:
+    if authorization and authorization.startswith("Bearer "):
+        database.delete_session(authorization.removeprefix("Bearer ").strip())
+    return {"ok": True}
+
+
+@app.get("/api/auth/me", response_model=UserOut)
+def me(user: sqlite3.Row = Depends(require_user)) -> UserOut:
+    return UserOut(username=user["username"])
+
+
+@app.get("/api/preferences", response_model=PreferencesOut)
+def get_preferences(user: sqlite3.Row = Depends(require_user)) -> PreferencesOut:
+    row = database.get_user_preferences(user["id"])
+    if row is None:
+        return PreferencesOut()
+    return PreferencesOut(
+        available_time=row["available_time"] or None,
+        mobility=row["mobility"] or None,
+        environment=row["environment"] or None,
+        avoid=[v for v in (row["avoid"] or "").split(",") if v],
+        preferences=[v for v in (row["preferences"] or "").split(",") if v],
+    )
+
+
+@app.put("/api/preferences", response_model=PreferencesOut)
+def put_preferences(
+    payload: PreferencesIn, user: sqlite3.Row = Depends(require_user)
+) -> PreferencesOut:
+    row = database.upsert_user_preferences(
+        user_id=user["id"],
+        available_time=payload.available_time or "",
+        mobility=payload.mobility or "",
+        environment=payload.environment or "",
+        avoid=",".join(payload.avoid),
+        preferences=",".join(payload.preferences),
+    )
+    return PreferencesOut(
+        available_time=row["available_time"] or None,
+        mobility=row["mobility"] or None,
+        environment=row["environment"] or None,
+        avoid=[v for v in (row["avoid"] or "").split(",") if v],
+        preferences=[v for v in (row["preferences"] or "").split(",") if v],
+    )
 
 
 EMOTION_TAG_ALIASES = {
@@ -353,13 +473,11 @@ def _english_tags(tag_list: list[dict[str, str] | str]) -> list[str]:
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
-    has_structured_input = bool(payload.emotions) or bool(payload.preferences)
-    if not payload.mood_text.strip() and not has_structured_input:
-        raise HTTPException(
-            status_code=400,
-            detail="Provide at least one emotion/preference selection or a mood_text sentence",
-        )
+def analyze(
+    payload: AnalyzeRequest, user: sqlite3.Row | None = Depends(get_current_user)
+) -> AnalyzeResponse:
+    if not payload.mood_text.strip():
+        raise HTTPException(status_code=400, detail="mood_text must not be empty")
 
     places = database.get_places_by_city(payload.city)
     if not places:
@@ -367,52 +485,53 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
             status_code=404, detail=f"No places found for city '{payload.city}'"
         )
 
+    # Logged-in users can save a personalization profile (My Page) that is
+    # applied automatically here; guests get plain mood-text matching.
+    prefs_row = database.get_user_preferences(user["id"]) if user else None
+    available_time = prefs_row["available_time"] if prefs_row else None
+    mobility = prefs_row["mobility"] if prefs_row else None
+    environment = prefs_row["environment"] if prefs_row else None
+    saved_avoid = [v for v in (prefs_row["avoid"] or "").split(",") if v] if prefs_row else []
+    saved_preferences = (
+        [v for v in (prefs_row["preferences"] or "").split(",") if v] if prefs_row else []
+    )
+
     try:
         analysis = ai_service.analyze_mood(
             payload.city,
             payload.mood_text,
             payload.language,
-            companions=payload.companions,
-            available_time=payload.available_time,
-            mobility=payload.mobility,
-            environment=payload.environment,
-            emotions=payload.emotions,
-            emotion_intensity=payload.emotion_intensity,
-            preferences=payload.preferences,
-            avoid=payload.avoid,
+            available_time=available_time,
+            mobility=mobility,
+            environment=environment,
+            preferences=saved_preferences,
+            avoid=saved_avoid,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {exc}") from exc
 
     ai_tag_out = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in analysis["tags"]]
-    emotion_tag_out = [_tag_out(tags.EMOTIONS, code) for code in payload.emotions]
-    preference_tag_out = [_tag_out(tags.PREFERENCES, code) for code in payload.preferences]
-    combined_tags = _combine_tags(emotion_tag_out, preference_tag_out, ai_tag_out)
+    preference_tag_out = [_tag_out(tags.PREFERENCES, code) for code in saved_preferences]
+    combined_tags = _combine_tags(preference_tag_out, ai_tag_out)
 
     situation_tag_out = []
-    if payload.companions:
-        situation_tag_out.append(_tag_out(tags.COMPANIONS, payload.companions))
-    if payload.available_time:
-        situation_tag_out.append(_tag_out(tags.AVAILABLE_TIME, payload.available_time))
-    if payload.mobility:
-        situation_tag_out.append(_tag_out(tags.MOBILITY, payload.mobility))
-    if payload.environment:
-        situation_tag_out.append(_tag_out(tags.ENVIRONMENT, payload.environment))
-    avoid_tag_out = [_tag_out(tags.AVOID, code) for code in payload.avoid]
+    if available_time:
+        situation_tag_out.append(_tag_out(tags.AVAILABLE_TIME, available_time))
+    if mobility:
+        situation_tag_out.append(_tag_out(tags.MOBILITY, mobility))
+    if environment:
+        situation_tag_out.append(_tag_out(tags.ENVIRONMENT, environment))
+    avoid_tag_out = [_tag_out(tags.AVOID, code) for code in saved_avoid]
 
-    vibe_matching_tags = (
-        _english_tags(payload.emotions)
-        + _english_tags(payload.preferences)
-        + _english_tags(analysis["tags"])
-    )
-    situation_codes = [c for c in (payload.companions, payload.mobility, payload.environment) if c]
+    vibe_matching_tags = _english_tags(saved_preferences) + _english_tags(analysis["tags"])
+    situation_codes = [c for c in (mobility, environment) if c]
 
     ranked = _rank_places(
         places,
         vibe_tags=vibe_matching_tags,
         situation_codes=situation_codes,
-        avoid_codes=payload.avoid,
-        available_time=payload.available_time,
+        avoid_codes=saved_avoid,
+        available_time=available_time,
         language=payload.language,
     )
     # Return a larger pool than a single card grid needs so the frontend can
@@ -429,7 +548,9 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 
 
 @app.post("/api/postcard", response_model=PostcardOut)
-def create_postcard(payload: PostcardRequest) -> PostcardOut:
+def create_postcard(
+    payload: PostcardRequest, user: sqlite3.Row | None = Depends(get_current_user)
+) -> PostcardOut:
     if not payload.review.strip():
         raise HTTPException(status_code=400, detail="review must not be empty")
 
@@ -490,14 +611,17 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
         next_place_id=next_place_id,
         next_place_name_en=next_place_name_en,
         next_place_name_ko=next_place_name_ko,
+        user_id=user["id"] if user else None,
     )
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, payload.language, places_by_id)
 
 
 @app.get("/api/archive", response_model=list[PostcardOut])
-def archive(language: str = "en") -> list[PostcardOut]:
-    rows = database.get_all_postcards()
+def archive(
+    language: str = "en", user: sqlite3.Row | None = Depends(get_current_user)
+) -> list[PostcardOut]:
+    rows = database.get_all_postcards(user["id"] if user else None)
     places_by_id = {p["id"]: p for p in database.get_all_places()}
     return [_row_to_postcard(row, language, places_by_id) for row in rows]
 

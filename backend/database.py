@@ -78,11 +78,47 @@ def init_db() -> None:
         "next_place_name_en TEXT",
         "next_place_name_ko TEXT",
         "trip_id TEXT",
+        "user_id INTEGER",
     ):
         try:
             cursor.execute(f"ALTER TABLE postcards ADD COLUMN {column}")
         except sqlite3.OperationalError:
             pass  # column already exists on a pre-existing database
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id),
+            available_time TEXT,
+            mobility TEXT,
+            environment TEXT,
+            avoid TEXT,
+            preferences TEXT,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """
+    )
 
     conn.commit()
 
@@ -590,6 +626,7 @@ def insert_postcard(
     next_place_id: int | None = None,
     next_place_name_en: str | None = None,
     next_place_name_ko: str | None = None,
+    user_id: int | None = None,
 ) -> sqlite3.Row:
     conn = get_connection()
     cursor = conn.execute(
@@ -597,9 +634,10 @@ def insert_postcard(
         INSERT INTO postcards (
             city, place_name, title, message, review, image_base64, place_id,
             title_en, message_en, title_ko, message_ko,
-            next_place_id, next_place_name_en, next_place_name_ko, trip_id
+            next_place_id, next_place_name_en, next_place_name_ko, trip_id,
+            user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             city,
@@ -617,6 +655,7 @@ def insert_postcard(
             next_place_name_en,
             next_place_name_ko,
             trip_id,
+            user_id,
         ),
     )
     conn.commit()
@@ -628,10 +667,117 @@ def insert_postcard(
     return row
 
 
-def get_all_postcards() -> list[sqlite3.Row]:
+def get_all_postcards(user_id: int | None = None) -> list[sqlite3.Row]:
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM postcards ORDER BY created_at DESC"
-    ).fetchall()
+    if user_id is None:
+        rows = conn.execute(
+            "SELECT * FROM postcards WHERE user_id IS NULL ORDER BY created_at DESC"
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM postcards WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
     conn.close()
     return rows
+
+
+def create_user(username: str, password_hash: str) -> sqlite3.Row:
+    conn = get_connection()
+    cursor = conn.execute(
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+        (username, password_hash),
+    )
+    conn.commit()
+    user_id = cursor.lastrowid
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def get_user_by_username(username: str) -> sqlite3.Row | None:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def get_user_by_id(user_id: int) -> sqlite3.Row | None:
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def create_session(token: str, user_id: int) -> None:
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_user_by_token(token: str) -> sqlite3.Row | None:
+    conn = get_connection()
+    row = conn.execute(
+        """
+        SELECT users.* FROM sessions
+        JOIN users ON users.id = sessions.user_id
+        WHERE sessions.token = ?
+        """,
+        (token,),
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def delete_session(token: str) -> None:
+    conn = get_connection()
+    conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+
+
+def get_user_preferences(user_id: int) -> sqlite3.Row | None:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM user_preferences WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def upsert_user_preferences(
+    user_id: int,
+    available_time: str,
+    mobility: str,
+    environment: str,
+    avoid: str,
+    preferences: str,
+) -> sqlite3.Row:
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO user_preferences (
+            user_id, available_time, mobility, environment, avoid, preferences, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(user_id) DO UPDATE SET
+            available_time = excluded.available_time,
+            mobility = excluded.mobility,
+            environment = excluded.environment,
+            avoid = excluded.avoid,
+            preferences = excluded.preferences,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, available_time, mobility, environment, avoid, preferences),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM user_preferences WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row
