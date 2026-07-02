@@ -80,11 +80,12 @@ def analyze_mood(
     saved free-text travel-style description (My Page), and return bilingual
     tags, an avoid list, and a bilingual clue.
 
-    style_text is whatever the traveler wrote about their general travel
-    style (e.g. "I like quiet riverside walks and avoid crowds") - written
-    like a prompt, not picked from a fixed set of options. This call reads
-    both mood_text (how they feel right now) and style_text (how they
-    generally like to travel) together and:
+    style_text is whatever the traveler wrote about preferred/avoided places,
+    moods, and situations (e.g. "I like quiet riverside walks and avoid
+    crowds") - written like a prompt, not picked from a fixed set of options.
+    The service targets solo travelers by default, so companionship should not
+    be inferred from this field. This call reads both mood_text (how they feel
+    right now) and style_text (what places or situations they prefer) together and:
     (a) extracts 3-6 short vibe/preference keywords blending both,
     (b) extracts 0-4 "avoid" keywords ONLY from a fixed small vocabulary
         (crowded, far, expensive, complex_route, long_wait, long_distance,
@@ -102,7 +103,9 @@ def analyze_mood(
     system_prompt = (
         "You are an emotionally perceptive travel companion. Given a city, a "
         "traveler's current mood, and optionally a saved free-text description "
-        "of their general travel style, do three things. First, extract 3-6 "
+        "of their preferred/avoided places, moods, and situations, do three "
+        "things. The traveler is assumed to be solo by default, so do not ask "
+        "for or infer companionship style. First, extract 3-6 "
         "short emotional/vibe/preference keywords that capture how they feel "
         "and what they like, blending both the current mood and the saved "
         "style; when a keyword naturally matches one of these known place "

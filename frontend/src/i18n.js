@@ -34,9 +34,9 @@ export const translations = {
     personalization: {
       heading: "My travel style",
       subheading:
-        "Write a few sentences about how you like to travel, like a prompt - we'll read it alongside every mood search you make while logged in.",
+        "Write a few sentences about places, moods, and situations you prefer or avoid - we'll read it alongside every mood search you make while logged in.",
       placeholder:
-        "I usually travel solo and like quiet riverside walks, cafes, and old alleyways. I try to avoid crowded, overly touristy spots and long waits...",
+        "I like quiet riverside walks, cafes, old alleyways, and places where I can sit for a while. I try to avoid crowded, overly touristy spots and long waits...",
       save: "Save my style",
       saving: "Saving...",
       saved: "Saved! This will apply to your next mood search.",
@@ -144,9 +144,9 @@ export const translations = {
     personalization: {
       heading: "나의 여행 스타일",
       subheading:
-        "프롬프트를 쓰듯이 평소 여행 스타일을 몇 문장 적어주세요. 로그인 상태에서 감정 검색을 할 때마다 함께 참고할게요.",
+        "선호하거나 피하고 싶은 장소, 분위기, 상황을 몇 문장으로 적어주세요. 로그인 상태에서 감정 검색을 할 때마다 함께 참고할게요.",
       placeholder:
-        "저는 보통 혼자 여행하고, 조용한 강변 산책이나 카페, 오래된 골목을 좋아해요. 사람 많고 관광지스러운 곳, 긴 대기는 피하고 싶어요...",
+        "조용한 강변 산책이나 카페, 오래된 골목처럼 잠시 머물 수 있는 곳을 좋아해요. 사람 많고 관광지스러운 곳, 긴 대기는 피하고 싶어요...",
       save: "내 스타일 저장하기",
       saving: "저장하는 중...",
       saved: "저장했어요! 다음 감정 검색부터 반영됩니다.",
