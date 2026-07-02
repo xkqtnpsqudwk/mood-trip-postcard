@@ -1,4 +1,5 @@
 """FastAPI application for Mood Trip Postcard."""
+import re
 import sqlite3
 from contextlib import asynccontextmanager
 
@@ -70,6 +71,64 @@ class PostcardOut(BaseModel):
     created_at: str
 
 
+EMOTION_TAG_ALIASES = {
+    "angry": {"calm", "peaceful", "restorative", "reflective"},
+    "anger": {"calm", "peaceful", "restorative", "reflective"},
+    "annoyed": {"calm", "quiet", "restorative"},
+    "adventure": {"adventurous", "curious", "energetic", "free-spirited"},
+    "adventurous": {"adventurous", "curious", "energetic", "free-spirited"},
+    "anxious": {"calm", "peaceful", "grounded", "restorative"},
+    "anxiety": {"calm", "peaceful", "grounded", "restorative"},
+    "bored": {"curious", "inspired", "adventurous", "lively"},
+    "burned-out": {"restorative", "slow-paced", "peaceful", "refreshing"},
+    "confused": {"reflective", "contemplative", "grounded", "curious"},
+    "creative": {"inspired", "curious", "free-spirited"},
+    "depressed": {"restorative", "peaceful", "reflective", "grounded"},
+    "dreamy": {"dreamy", "romantic", "peaceful"},
+    "empty": {"reflective", "contemplative", "restorative"},
+    "energetic": {"energetic", "joyful", "social", "lively"},
+    "excited": {"energetic", "joyful", "adventurous", "social"},
+    "fearful": {"peaceful", "grounded", "calm"},
+    "free": {"free-spirited", "refreshing", "adventurous"},
+    "happy": {"joyful", "content", "social", "refreshing"},
+    "healing": {"restorative", "peaceful", "grounded"},
+    "heartbroken": {"melancholy", "reflective", "restorative"},
+    "hopeful": {"hopeful", "refreshing", "dreamy"},
+    "lonely": {"solitary", "reflective", "contemplative", "calm"},
+    "lost": {"reflective", "contemplative", "grounded"},
+    "love": {"romantic", "dreamy", "hopeful"},
+    "melancholy": {"melancholy", "reflective", "solitary"},
+    "nervous": {"calm", "peaceful", "grounded"},
+    "nostalgic": {"nostalgic", "timeless", "reflective"},
+    "overwhelmed": {"calm", "quiet", "restorative", "slow-paced"},
+    "peaceful": {"peaceful", "calm", "serene", "quiet"},
+    "restless": {"adventurous", "refreshing", "free-spirited", "urban"},
+    "romantic": {"romantic", "dreamy", "hopeful"},
+    "sad": {"melancholy", "reflective", "restorative", "solitary"},
+    "sadness": {"melancholy", "reflective", "restorative", "solitary"},
+    "scared": {"peaceful", "grounded", "calm"},
+    "stressed": {"calm", "peaceful", "restorative", "refreshing"},
+    "stress": {"calm", "peaceful", "restorative", "refreshing"},
+    "tired": {"restorative", "slow-paced", "peaceful", "content"},
+    "worn-out": {"restorative", "slow-paced", "peaceful"},
+}
+
+
+def _normalize_tag(tag: str) -> str:
+    return re.sub(r"[\s_]+", "-", tag.strip().lower())
+
+
+def _expand_tags(tags: list[str]) -> set[str]:
+    expanded = set()
+    for tag in tags:
+        normalized = _normalize_tag(tag)
+        if not normalized:
+            continue
+        expanded.add(normalized)
+        expanded.update(EMOTION_TAG_ALIASES.get(normalized, set()))
+    return expanded
+
+
 def _localized(row: sqlite3.Row, field: str, language: str) -> str:
     if language == "ko":
         localized = row[f"{field}_ko"]
@@ -116,16 +175,20 @@ def _row_to_postcard(
 def _rank_places_by_tags(
     places: list[sqlite3.Row], tags: list[str], language: str = "en"
 ) -> list[PlaceOut]:
-    tag_set = {t.lower() for t in tags}
+    tag_set = _expand_tags(tags)
     scored = []
     for place in places:
         # Matching always uses the canonical English mood_tags, regardless of
         # display language, since the AI always extracts tags in English.
-        place_tags = {t.strip().lower() for t in place["mood_tags"].split(",")}
+        place_tags = {_normalize_tag(t) for t in place["mood_tags"].split(",")}
         score = len(tag_set & place_tags)
         scored.append((score, place))
     scored.sort(key=lambda pair: pair[0], reverse=True)
-    return [_row_to_place(place, score, language) for score, place in scored]
+    return [
+        _row_to_place(place, score, language)
+        for score, place in scored
+        if score > 0
+    ]
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)

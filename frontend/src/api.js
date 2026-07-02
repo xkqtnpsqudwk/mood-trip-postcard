@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "/api",
-  timeout: 0,
+  timeout: 90000,
 });
 
 export const analyzeMood = (city, moodText, language) =>

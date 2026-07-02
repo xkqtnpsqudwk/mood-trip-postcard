@@ -23,6 +23,8 @@ export const translations = {
       spotsHeading: "Spots that match your feeling",
       visitCta: "I visited this place →",
       startOver: "Start over with a new mood",
+      noMatches:
+        "We couldn't find a strong place match yet. Try describing your mood with a little more detail.",
     },
     postcardCreator: {
       heading: "How was it?",
@@ -51,8 +53,10 @@ export const translations = {
     planAnother: "Plan another trip",
     viewArchive: "View archive",
     errors: {
-      analyze: "We couldn't read your mood right now. Please try again.",
-      postcard: "We couldn't create your postcard right now. Please try again.",
+      analyze:
+        "We couldn't read your mood within 90 seconds. Please try again.",
+      postcard:
+        "We couldn't create your postcard within 90 seconds. Please try again.",
     },
   },
   ko: {
@@ -79,6 +83,8 @@ export const translations = {
       spotsHeading: "지금 기분과 어울리는 장소",
       visitCta: "이곳을 다녀왔어요 →",
       startOver: "새로운 기분으로 다시 시작하기",
+      noMatches:
+        "아직 강하게 맞는 장소를 찾지 못했어요. 기분을 조금 더 자세히 적어 다시 시도해보세요.",
     },
     postcardCreator: {
       heading: "다녀와 보니 어떠셨나요?",
@@ -106,8 +112,8 @@ export const translations = {
     planAnother: "새로운 여행 계획하기",
     viewArchive: "보관함 보기",
     errors: {
-      analyze: "지금은 기분을 분석할 수 없어요. 다시 시도해주세요.",
-      postcard: "지금은 엽서를 만들 수 없어요. 다시 시도해주세요.",
+      analyze: "90초 안에 기분을 분석하지 못했어요. 다시 시도해주세요.",
+      postcard: "90초 안에 엽서를 만들지 못했어요. 다시 시도해주세요.",
     },
   },
 };

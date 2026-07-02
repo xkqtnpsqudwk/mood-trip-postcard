@@ -9,6 +9,7 @@ from openai import OpenAI
 
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 NIM_MODEL = "meta/llama-4-maverick-17b-128e-instruct"
+NIM_TIMEOUT_SECONDS = 90.0
 
 NIM_IMAGE_URL = "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev"
 
@@ -27,7 +28,11 @@ def _get_client() -> OpenAI:
         api_key = os.environ.get("NVIDIA_NIM_API_KEY")
         if not api_key:
             raise RuntimeError("NVIDIA_NIM_API_KEY is not set")
-        _client = OpenAI(base_url=NIM_BASE_URL, api_key=api_key)
+        _client = OpenAI(
+            base_url=NIM_BASE_URL,
+            api_key=api_key,
+            timeout=NIM_TIMEOUT_SECONDS,
+        )
     return _client
 
 
@@ -154,7 +159,7 @@ def generate_postcard_image(city: str, place_name: str, review: str) -> str | No
                 "height": 768,
                 "steps": 25,
             },
-            timeout=90,
+            timeout=NIM_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         artifacts = response.json().get("artifacts", [])

@@ -66,10 +66,8 @@ def init_db() -> None:
     needs_reseed = cursor.fetchone()["count"] > 0
     if needs_reseed:
         cursor.execute("DELETE FROM places")
-    cursor.execute("SELECT COUNT(*) AS count FROM places")
-    if cursor.fetchone()["count"] == 0:
-        _seed_places(cursor)
-        conn.commit()
+    _seed_places(cursor)
+    conn.commit()
 
     conn.close()
 
@@ -127,6 +125,56 @@ def _seed_places(cursor: sqlite3.Cursor) -> None:
             "우울함, 사색적임, 고독함, 명상적인",
             None,
         ),
+        (
+            "Paris",
+            "Tuileries Garden",
+            "A formal garden between the Louvre and Place de la Concorde, ideal for slow walks and people-watching.",
+            "elegant, calm, reflective, leisurely",
+            "튈르리 정원",
+            "루브르와 콩코르드 광장 사이에 있는 정원으로, 천천히 걷고 사람들을 바라보기 좋은 곳이에요.",
+            "우아한, 차분함, 사색적임, 여유로운",
+            None,
+        ),
+        (
+            "Paris",
+            "Canal Saint-Martin",
+            "A laid-back canal district with iron footbridges, cafes, and a local evening atmosphere.",
+            "relaxed, social, curious, urban",
+            "생마르탱 운하",
+            "철제 다리와 카페가 이어지는 운하 거리로, 현지의 저녁 분위기를 느끼기 좋아요.",
+            "여유로운, 사교적인, 호기심 많은, 도시적인",
+            None,
+        ),
+        (
+            "Paris",
+            "Sainte-Chapelle",
+            "A jewel-like chapel filled with stained glass light, suited to awe and quiet wonder.",
+            "awe-struck, peaceful, inspired, contemplative",
+            "생트샤펠",
+            "스테인드글라스 빛으로 가득한 예배당으로, 조용한 경이로움을 느끼기 좋은 장소예요.",
+            "경이로운, 평화로운, 영감을 주는, 명상적인",
+            None,
+        ),
+        (
+            "Paris",
+            "Le Marais",
+            "A historic neighborhood of galleries, boutiques, courtyards, and lively side streets.",
+            "curious, stylish, lively, inspired",
+            "마레 지구",
+            "갤러리와 상점, 안뜰, 활기찬 골목이 어우러진 역사적인 동네예요.",
+            "호기심 많은, 세련된, 활기찬, 영감을 주는",
+            None,
+        ),
+        (
+            "Paris",
+            "Parc des Buttes-Chaumont",
+            "A dramatic hill park with cliffs, bridges, and wide views over the city.",
+            "adventurous, refreshing, free-spirited, scenic",
+            "뷔트 쇼몽 공원",
+            "절벽과 다리, 도시 전망이 있는 언덕 공원으로, 상쾌하게 걷기 좋은 곳이에요.",
+            "모험적인, 상쾌한, 자유로운, 풍경이 좋은",
+            None,
+        ),
         # Seoul
         (
             "Seoul",
@@ -178,7 +226,68 @@ def _seed_places(cursor: sqlite3.Cursor) -> None:
             "평화로운, 회복되는, 성찰적인, 고요한",
             None,
         ),
+        (
+            "Seoul",
+            "Seoul Forest",
+            "A spacious park with trees, lawns, and quiet paths that feel restorative inside the city.",
+            "restorative, peaceful, refreshing, grounded",
+            "서울숲",
+            "나무와 잔디, 조용한 산책로가 있는 넓은 공원으로, 도심 속에서 회복감을 느끼기 좋아요.",
+            "회복되는, 평화로운, 상쾌한, 안정적인",
+            None,
+        ),
+        (
+            "Seoul",
+            "Ikseon-dong Hanok Street",
+            "A compact neighborhood of old hanok alleys, small shops, and warm cafe lights.",
+            "nostalgic, cozy, curious, romantic",
+            "익선동 한옥거리",
+            "오래된 한옥 골목과 작은 상점, 따뜻한 카페 불빛이 이어지는 아담한 동네예요.",
+            "그리움, 아늑한, 호기심 많은, 로맨틱함",
+            None,
+        ),
+        (
+            "Seoul",
+            "Cheonggyecheon Stream",
+            "A restored stream path through downtown Seoul, good for a quiet walk between busy streets.",
+            "calm, reflective, urban, refreshing",
+            "청계천",
+            "도심 한가운데 이어지는 복원 하천 산책로로, 바쁜 거리 사이에서 조용히 걷기 좋아요.",
+            "차분함, 사색적임, 도시적인, 상쾌한",
+            None,
+        ),
+        (
+            "Seoul",
+            "Gyeongui Line Forest Park",
+            "A linear park built along old railway tracks, with cafes, benches, and a gentle neighborhood mood.",
+            "relaxed, social, slow-paced, content",
+            "경의선숲길",
+            "옛 철길을 따라 조성된 공원으로, 카페와 벤치가 이어지는 느긋한 동네 분위기가 있어요.",
+            "여유로운, 사교적인, 느긋함, 만족스러운",
+            None,
+        ),
+        (
+            "Seoul",
+            "Dongdaemun Design Plaza",
+            "A futuristic cultural landmark with sweeping curves, night lights, and design exhibitions.",
+            "curious, inspired, futuristic, energetic",
+            "동대문디자인플라자",
+            "곡선형 건축과 야간 조명, 전시가 어우러진 미래적인 문화 공간이에요.",
+            "호기심 많은, 영감을 주는, 미래적인, 활기찬",
+            None,
+        ),
     ]
+    existing = {
+        (row["city"].lower(), row["name"].lower())
+        for row in cursor.execute("SELECT city, name FROM places").fetchall()
+    }
+    places = [
+        place
+        for place in places
+        if (place[0].lower(), place[1].lower()) not in existing
+    ]
+    if not places:
+        return
     cursor.executemany(
         """
         INSERT INTO places (city, name, description, mood_tags, name_ko, description_ko, mood_tags_ko, image_url)

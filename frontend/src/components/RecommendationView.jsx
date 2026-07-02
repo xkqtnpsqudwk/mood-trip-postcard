@@ -31,28 +31,34 @@ export default function RecommendationView({ result, onSelectPlace, onStartOver 
       <h3 className="mt-8 text-center text-lg font-medium text-stone-700 dark:text-zinc-200">
         {t.recommendation.spotsHeading}
       </h3>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {places.map((place) => (
-          <button
-            key={place.id}
-            onClick={() => onSelectPlace(place)}
-            className="group flex flex-col rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-rose-200 hover:shadow-[0_16px_30px_-10px_rgba(251,113,133,0.35)] dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-fuchsia-500/50 dark:hover:shadow-[0_0_20px_rgba(232,68,255,0.25)]"
-          >
-            <span className="text-base font-semibold text-stone-800 group-hover:text-rose-500 dark:text-zinc-100 dark:group-hover:text-fuchsia-300">
-              {place.name}
-            </span>
-            <span className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
-              {place.description}
-            </span>
-            <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
-              {place.mood_tags}
-            </span>
-            <span className="mt-4 text-sm font-medium text-rose-400 dark:text-cyan-400">
-              {t.recommendation.visitCta}
-            </span>
-          </button>
-        ))}
-      </div>
+      {places.length > 0 ? (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {places.map((place) => (
+            <button
+              key={place.id}
+              onClick={() => onSelectPlace(place)}
+              className="group flex flex-col rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-rose-200 hover:shadow-[0_16px_30px_-10px_rgba(251,113,133,0.35)] dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-fuchsia-500/50 dark:hover:shadow-[0_0_20px_rgba(232,68,255,0.25)]"
+            >
+              <span className="text-base font-semibold text-stone-800 group-hover:text-rose-500 dark:text-zinc-100 dark:group-hover:text-fuchsia-300">
+                {place.name}
+              </span>
+              <span className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
+                {place.description}
+              </span>
+              <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
+                {place.mood_tags}
+              </span>
+              <span className="mt-4 text-sm font-medium text-rose-400 dark:text-cyan-400">
+                {t.recommendation.visitCta}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="mx-auto mt-4 max-w-xl rounded-2xl bg-white/70 px-5 py-4 text-center text-sm text-stone-500 shadow-sm ring-1 ring-white/60 dark:bg-zinc-900/60 dark:text-zinc-400 dark:ring-fuchsia-500/20">
+          {t.recommendation.noMatches}
+        </p>
+      )}
 
       <div className="mt-6 text-center">
         <button
