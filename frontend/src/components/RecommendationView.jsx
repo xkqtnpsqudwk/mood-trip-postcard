@@ -1,3 +1,5 @@
+import { useState } from "react";
+import CityMiniMap from "./CityMiniMap";
 import { useLanguage } from "../LanguageContext";
 
 const normalizeTag = (tag) => String(tag).trim().toLowerCase().replace(/[\s_]+/g, "-");
@@ -27,9 +29,14 @@ export default function RecommendationView({
   onDismiss,
 }) {
   const { t, lang } = useLanguage();
+  const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState(null);
   if (!result) return null;
   const { clue, tags, avoid_tags: avoidTags, places: allPlaces } = result;
   const places = allPlaces.filter((place) => !visitedPlaceIds.includes(place.id));
+  const selectedPlace =
+    places.find((place) => place.id === selectedPlaceId) || places[0] || null;
+  const activePlaceId = hoveredPlaceId || selectedPlace?.id || null;
 
   return (
     <div className="mx-auto w-full max-w-3xl lg:max-w-5xl">
@@ -70,54 +77,61 @@ export default function RecommendationView({
           : t.recommendation.spotsHeading}
       </h3>
       {places.length > 0 ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {places.map((place) => (
-            <button
-              key={place.id}
-              onClick={() => onSelectPlace(place)}
-              className="group flex flex-col rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-rose-200 hover:shadow-[0_16px_30px_-10px_rgba(251,113,133,0.35)] dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-fuchsia-500/50 dark:hover:shadow-[0_0_20px_rgba(232,68,255,0.25)]"
-            >
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <CityMiniMap
+            places={places}
+            activePlaceId={activePlaceId}
+            onHover={setHoveredPlaceId}
+            onSelectMarker={setSelectedPlaceId}
+          />
+          {selectedPlace && (
+            <div className="flex min-h-full flex-col rounded-2xl border border-rose-200 bg-white p-5 text-left shadow-sm ring-2 ring-rose-100 dark:border-fuchsia-500/40 dark:bg-zinc-900/60 dark:ring-fuchsia-500/15">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-base font-semibold text-stone-800 group-hover:text-rose-500 dark:text-zinc-100 dark:group-hover:text-fuchsia-300">
-                  {localized(place.name_i18n, lang) || place.name}
+                <span className="text-lg font-semibold text-stone-800 dark:text-zinc-100">
+                  {localized(selectedPlace.name_i18n, lang) || selectedPlace.name}
                 </span>
-                {place.type && (
+                {selectedPlace.type && (
                   <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-500 dark:bg-cyan-950/50 dark:text-cyan-300">
-                    {localized(place.type_i18n, lang) || place.type}
+                    {localized(selectedPlace.type_i18n, lang) || selectedPlace.type}
                   </span>
                 )}
               </div>
-              {(localized(place.duration_label_i18n, lang) ||
-                place.duration_labels?.join(" / ")) && (
+              {(localized(selectedPlace.duration_label_i18n, lang) ||
+                selectedPlace.duration_labels?.join(" / ")) && (
                 <span className="mt-1 text-[11px] text-stone-400 dark:text-zinc-500">
-                  {localized(place.duration_label_i18n, lang) ||
-                    place.duration_labels.join(" / ")}
+                  {localized(selectedPlace.duration_label_i18n, lang) ||
+                    selectedPlace.duration_labels.join(" / ")}
                 </span>
               )}
-              <span className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
-                {localized(place.description_i18n, lang) || place.description}
+              <span className="mt-3 text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
+                {localized(selectedPlace.description_i18n, lang) ||
+                  selectedPlace.description}
               </span>
               <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
-                {localized(place.mood_tags_i18n, lang) || place.mood_tags}
+                {localized(selectedPlace.mood_tags_i18n, lang) ||
+                  selectedPlace.mood_tags}
               </span>
-              {(localized(place.reason_i18n, lang) || place.reason) && (
-                <p className="mt-3 text-xs italic text-stone-500 dark:text-zinc-400">
-                  {localized(place.reason_i18n, lang) || place.reason}
+              {(localized(selectedPlace.reason_i18n, lang) || selectedPlace.reason) && (
+                <p className="mt-3 text-xs italic leading-relaxed text-stone-500 dark:text-zinc-400">
+                  {localized(selectedPlace.reason_i18n, lang) || selectedPlace.reason}
                 </p>
               )}
-              {(localized(place.avoid_warning_i18n, lang) ||
-                place.avoid_warnings?.join(", ")) && (
+              {(localized(selectedPlace.avoid_warning_i18n, lang) ||
+                selectedPlace.avoid_warnings?.join(", ")) && (
                 <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
                   {t.recommendation.avoidWarningPrefix}{" "}
-                  {localized(place.avoid_warning_i18n, lang) ||
-                    place.avoid_warnings.join(", ")}
+                  {localized(selectedPlace.avoid_warning_i18n, lang) ||
+                    selectedPlace.avoid_warnings.join(", ")}
                 </p>
               )}
-              <span className="mt-4 text-sm font-medium text-rose-400 dark:text-cyan-400">
+              <button
+                onClick={() => onSelectPlace(selectedPlace)}
+                className="mt-auto pt-5 text-left text-sm font-medium text-rose-400 hover:text-rose-500 dark:text-cyan-400 dark:hover:text-cyan-300"
+              >
                 {requireLogin ? t.recommendation.visitCtaGuest : t.recommendation.visitCta}
-              </span>
-            </button>
-          ))}
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <p className="mx-auto mt-4 max-w-xl rounded-2xl bg-white/70 px-5 py-4 text-center text-sm text-stone-500 shadow-sm ring-1 ring-white/60 dark:bg-zinc-900/60 dark:text-zinc-400 dark:ring-fuchsia-500/20">

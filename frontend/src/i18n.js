@@ -59,6 +59,7 @@ export const translations = {
     recommendation: {
       clueLabel: "Your metaphorical clue",
       avoidSummaryLabel: "You'd rather avoid",
+      mapTitle: "Approximate mood map",
       spotsHeading: "Spots that match your feeling",
       continuationHeading: "Where to next on this trip?",
       visitCta: "Write a postcard after visiting →",
@@ -170,6 +171,7 @@ export const translations = {
     recommendation: {
       clueLabel: "당신을 위한 은유적 단서",
       avoidSummaryLabel: "피하고 싶은 것",
+      mapTitle: "대략적인 위치",
       spotsHeading: "지금 기분과 어울리는 장소",
       continuationHeading: "다음 정거장은 어디로 가볼까요?",
       visitCta: "다녀온 뒤 엽서 쓰기 →",
