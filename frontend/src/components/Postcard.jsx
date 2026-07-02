@@ -24,6 +24,8 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
   const placeName = localized(postcard.place_name_i18n, lang) || postcard.place_name;
   const title = localized(postcard.title_i18n, lang) || postcard.title;
   const message = localized(postcard.message_i18n, lang) || postcard.message;
+  const nextPlaceName =
+    localized(postcard.next_place_name_i18n, lang) || postcard.next_place_name;
 
   const handleClick = () => {
     if (onOpen) {
@@ -50,6 +52,11 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
             <p className="mt-2 line-clamp-4 text-sm italic text-stone-600 dark:text-zinc-300">
               {message}
             </p>
+            {nextPlaceName && (
+              <p className="mt-2 text-[11px] text-violet-500 dark:text-cyan-400">
+                {t.postcard.nextPlaceLabel}: {nextPlaceName}
+              </p>
+            )}
           </div>
           <p className="text-[10px] text-stone-400 dark:text-zinc-500">
             {onOpen ? t.postcard.tapToOpen : t.postcard.tapToFlip}

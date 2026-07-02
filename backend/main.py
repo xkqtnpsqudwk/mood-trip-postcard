@@ -1,6 +1,7 @@
 """FastAPI application for Mood Trip Postcard."""
 import re
 import sqlite3
+import uuid
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ load_dotenv()
 
 import ai_service
 import database
+import tags
 
 
 @asynccontextmanager
@@ -33,8 +35,16 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     city: str
-    mood_text: str
+    mood_text: str = ""
     language: str = "en"
+    companions: str | None = None
+    available_time: str | None = None
+    mobility: str | None = None
+    environment: str | None = None
+    emotions: list[str] = []
+    emotion_intensity: str | None = None
+    preferences: list[str] = []
+    avoid: list[str] = []
 
 
 class LocalizedText(BaseModel):
@@ -58,11 +68,19 @@ class PlaceOut(BaseModel):
     mood_tags_i18n: LocalizedText
     image_url: str | None = None
     match_score: int = 0
+    type: str = ""
+    type_i18n: LocalizedText
+    duration_labels: list[str] = []
+    reason: str = ""
+    reason_i18n: LocalizedText
+    avoid_warnings: list[str] = []
 
 
 class AnalyzeResponse(BaseModel):
     clue: LocalizedText
     tags: list[LocalizedTag]
+    situation_tags: list[LocalizedTag] = []
+    avoid_tags: list[LocalizedTag] = []
     places: list[PlaceOut]
 
 
@@ -71,6 +89,8 @@ class PostcardRequest(BaseModel):
     place_id: int
     review: str
     language: str = "en"
+    trip_id: str | None = None
+    next_place_id: int | None = None
 
 
 class PostcardOut(BaseModel):
@@ -85,6 +105,10 @@ class PostcardOut(BaseModel):
     review: str
     image_base64: str | None = None
     created_at: str
+    trip_id: str
+    next_place_id: int | None = None
+    next_place_name: str | None = None
+    next_place_name_i18n: LocalizedText | None = None
 
 
 EMOTION_TAG_ALIASES = {
@@ -125,6 +149,7 @@ EMOTION_TAG_ALIASES = {
     "scared": {"peaceful", "grounded", "calm"},
     "stressed": {"calm", "peaceful", "restorative", "refreshing"},
     "stress": {"calm", "peaceful", "restorative", "refreshing"},
+    "stuffy": {"refreshing", "riverside", "scenic"},
     "tired": {"restorative", "slow-paced", "peaceful", "content"},
     "worn-out": {"restorative", "slow-paced", "peaceful"},
 }
@@ -134,15 +159,25 @@ def _normalize_tag(tag: str) -> str:
     return re.sub(r"[\s_]+", "-", tag.strip().lower())
 
 
-def _expand_tags(tags: list[str]) -> set[str]:
+def _expand_tags(tag_list: list[str]) -> set[str]:
     expanded = set()
-    for tag in tags:
+    for tag in tag_list:
         normalized = _normalize_tag(tag)
         if not normalized:
             continue
         expanded.add(normalized)
         expanded.update(EMOTION_TAG_ALIASES.get(normalized, set()))
     return expanded
+
+
+def _tag_set(value: str) -> set[str]:
+    """Normalized (hyphenated) tag set, for fuzzy vibe/mood matching."""
+    return {_normalize_tag(t) for t in (value or "").split(",") if t.strip()}
+
+
+def _code_set(value: str) -> set[str]:
+    """Exact fixed-vocabulary codes (see tags.py), for situation/avoid matching."""
+    return {c.strip().lower() for c in (value or "").split(",") if c.strip()}
 
 
 def _localized(row: sqlite3.Row, field: str, language: str) -> str:
@@ -168,7 +203,13 @@ def _row_value(row: sqlite3.Row, field: str, default: str = "") -> str:
     return value or default
 
 
-def _row_to_place(row: sqlite3.Row, score: int = 0, language: str = "en") -> PlaceOut:
+def _row_to_place(
+    row: sqlite3.Row,
+    score: int = 0,
+    language: str = "en",
+    avoid_conflicts: list[str] | None = None,
+) -> PlaceOut:
+    duration_codes = [c for c in _row_value(row, "duration").split(",") if c]
     return PlaceOut(
         id=row["id"],
         city=row["city"],
@@ -180,6 +221,12 @@ def _row_to_place(row: sqlite3.Row, score: int = 0, language: str = "en") -> Pla
         mood_tags_i18n=_localized_pair(row, "mood_tags"),
         image_url=row["image_url"],
         match_score=score,
+        type=_localized(row, "type", language),
+        type_i18n=_localized_pair(row, "type"),
+        duration_labels=tags.labels(tags.AVAILABLE_TIME, duration_codes, language),
+        reason=_localized(row, "reason", language),
+        reason_i18n=_localized_pair(row, "reason"),
+        avoid_warnings=tags.labels(tags.AVOID, avoid_conflicts or [], language),
     )
 
 
@@ -202,6 +249,18 @@ def _row_to_postcard(
     message_en = _row_value(row, "message_en", row["message"])
     message_ko = _row_value(row, "message_ko", row["message"])
 
+    next_place_name_en = _row_value(row, "next_place_name_en")
+    next_place_name_ko = _row_value(row, "next_place_name_ko")
+    next_place_name_i18n = None
+    next_place_name = None
+    if next_place_name_en:
+        next_place_name_i18n = LocalizedText(
+            en=next_place_name_en, ko=next_place_name_ko or next_place_name_en
+        )
+        next_place_name = (
+            next_place_name_i18n.ko if language == "ko" else next_place_name_i18n.en
+        )
+
     return PostcardOut(
         id=row["id"],
         city=row["city"],
@@ -214,31 +273,78 @@ def _row_to_postcard(
         review=row["review"],
         image_base64=row["image_base64"],
         created_at=row["created_at"],
+        trip_id=_row_value(row, "trip_id"),
+        next_place_id=row["next_place_id"],
+        next_place_name=next_place_name,
+        next_place_name_i18n=next_place_name_i18n,
     )
 
 
-def _rank_places_by_tags(
-    places: list[sqlite3.Row], tags: list[str], language: str = "en"
+def _tag_out(vocab: dict, code: str) -> LocalizedTag:
+    entry = vocab.get(code, {"en": code, "ko": code})
+    return LocalizedTag(en=entry.get("en", code), ko=entry.get("ko", code))
+
+
+def _combine_tags(*groups: list[LocalizedTag]) -> list[LocalizedTag]:
+    seen: set[str] = set()
+    combined: list[LocalizedTag] = []
+    for group in groups:
+        for tag in group:
+            key = tag.en.strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                combined.append(tag)
+    return combined
+
+
+def _rank_places(
+    places: list[sqlite3.Row],
+    vibe_tags: list[str],
+    situation_codes: list[str],
+    avoid_codes: list[str],
+    available_time: str | None = None,
+    language: str = "en",
 ) -> list[PlaceOut]:
-    tag_set = _expand_tags(tags)
+    """Score places by overlap across three axes and penalize avoid conflicts.
+
+    - vibe: user's emotions + preferences + AI-extracted free-text tags,
+      matched (with alias expansion) against a place's mood_tags + preference_tags.
+    - situation: companions/mobility/environment matched against situation_tags.
+    - avoid: user's avoid selections matched against a place's avoid_tags,
+      which lowers (not eliminates) that place's ranking.
+    """
+    user_vibe = _expand_tags(vibe_tags)
+    user_situation = {c.strip().lower() for c in situation_codes if c}
+    user_avoid = {c.strip().lower() for c in avoid_codes if c}
+
     scored = []
     for place in places:
-        # Matching always uses the canonical English mood_tags, regardless of
-        # display language, since the AI always extracts tags in English.
-        place_tags = {_normalize_tag(t) for t in place["mood_tags"].split(",")}
-        score = len(tag_set & place_tags)
-        scored.append((score, place))
-    scored.sort(key=lambda pair: pair[0], reverse=True)
+        place_vibe = _tag_set(place["mood_tags"]) | _tag_set(_row_value(place, "preference_tags"))
+        place_situation = _code_set(_row_value(place, "situation_tags"))
+        place_avoid = _code_set(_row_value(place, "avoid_tags"))
+        place_duration = [c for c in _row_value(place, "duration").split(",") if c]
+
+        vibe_overlap = len(user_vibe & place_vibe)
+        if vibe_overlap == 0:
+            continue
+
+        situation_overlap = len(user_situation & place_situation)
+        duration_match = 1 if available_time and available_time in place_duration else 0
+        conflicts = sorted(user_avoid & place_avoid)
+
+        score = vibe_overlap * 2 + situation_overlap + duration_match - len(conflicts) * 2
+        scored.append((score, place, conflicts))
+
+    scored.sort(key=lambda triple: triple[0], reverse=True)
     return [
-        _row_to_place(place, score, language)
-        for score, place in scored
-        if score > 0
+        _row_to_place(place, score, language, conflicts)
+        for score, place, conflicts in scored
     ]
 
 
-def _english_tags(tags: list[dict[str, str] | str]) -> list[str]:
+def _english_tags(tag_list: list[dict[str, str] | str]) -> list[str]:
     values = []
-    for tag in tags:
+    for tag in tag_list:
         if isinstance(tag, dict):
             values.append(str(tag.get("en", "")))
         else:
@@ -248,8 +354,12 @@ def _english_tags(tags: list[dict[str, str] | str]) -> list[str]:
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
-    if not payload.mood_text.strip():
-        raise HTTPException(status_code=400, detail="mood_text must not be empty")
+    has_structured_input = bool(payload.emotions) or bool(payload.preferences)
+    if not payload.mood_text.strip() and not has_structured_input:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one emotion/preference selection or a mood_text sentence",
+        )
 
     places = database.get_places_by_city(payload.city)
     if not places:
@@ -258,14 +368,64 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
         )
 
     try:
-        analysis = ai_service.analyze_mood(payload.city, payload.mood_text, payload.language)
+        analysis = ai_service.analyze_mood(
+            payload.city,
+            payload.mood_text,
+            payload.language,
+            companions=payload.companions,
+            available_time=payload.available_time,
+            mobility=payload.mobility,
+            environment=payload.environment,
+            emotions=payload.emotions,
+            emotion_intensity=payload.emotion_intensity,
+            preferences=payload.preferences,
+            avoid=payload.avoid,
+        )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {exc}") from exc
 
-    ranked = _rank_places_by_tags(places, _english_tags(analysis["tags"]), payload.language)
-    top_places = ranked[:3]
+    ai_tag_out = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in analysis["tags"]]
+    emotion_tag_out = [_tag_out(tags.EMOTIONS, code) for code in payload.emotions]
+    preference_tag_out = [_tag_out(tags.PREFERENCES, code) for code in payload.preferences]
+    combined_tags = _combine_tags(emotion_tag_out, preference_tag_out, ai_tag_out)
 
-    return AnalyzeResponse(clue=analysis["clue"], tags=analysis["tags"], places=top_places)
+    situation_tag_out = []
+    if payload.companions:
+        situation_tag_out.append(_tag_out(tags.COMPANIONS, payload.companions))
+    if payload.available_time:
+        situation_tag_out.append(_tag_out(tags.AVAILABLE_TIME, payload.available_time))
+    if payload.mobility:
+        situation_tag_out.append(_tag_out(tags.MOBILITY, payload.mobility))
+    if payload.environment:
+        situation_tag_out.append(_tag_out(tags.ENVIRONMENT, payload.environment))
+    avoid_tag_out = [_tag_out(tags.AVOID, code) for code in payload.avoid]
+
+    vibe_matching_tags = (
+        _english_tags(payload.emotions)
+        + _english_tags(payload.preferences)
+        + _english_tags(analysis["tags"])
+    )
+    situation_codes = [c for c in (payload.companions, payload.mobility, payload.environment) if c]
+
+    ranked = _rank_places(
+        places,
+        vibe_tags=vibe_matching_tags,
+        situation_codes=situation_codes,
+        avoid_codes=payload.avoid,
+        available_time=payload.available_time,
+        language=payload.language,
+    )
+    # Return a larger pool than a single card grid needs so the frontend can
+    # offer more stops as the user continues the same trip to nearby places.
+    top_places = ranked[:6]
+
+    return AnalyzeResponse(
+        clue=analysis["clue"],
+        tags=combined_tags,
+        situation_tags=situation_tag_out,
+        avoid_tags=avoid_tag_out,
+        places=top_places,
+    )
 
 
 @app.post("/api/postcard", response_model=PostcardOut)
@@ -305,18 +465,31 @@ def create_postcard(payload: PostcardRequest) -> PostcardOut:
         city=payload.city, place_name=place["name"], review=payload.review
     )
 
+    next_place = None
+    if payload.next_place_id is not None:
+        next_place = next((p for p in places if p["id"] == payload.next_place_id), None)
+    next_place_id = next_place["id"] if next_place else None
+    next_place_name_en = _localized(next_place, "name", "en") if next_place else None
+    next_place_name_ko = _localized(next_place, "name", "ko") if next_place else None
+
+    trip_id = payload.trip_id or str(uuid.uuid4())
+
     row = database.insert_postcard(
         city=payload.city,
         place_name=place_name,
         title=generated["title"]["en"],
         message=generated["message"]["en"],
         review=payload.review,
+        trip_id=trip_id,
         image_base64=image_base64,
         place_id=place["id"],
         title_en=generated["title"]["en"],
         message_en=generated["message"]["en"],
         title_ko=generated["title"]["ko"],
         message_ko=generated["message"]["ko"],
+        next_place_id=next_place_id,
+        next_place_name_en=next_place_name_en,
+        next_place_name_ko=next_place_name_ko,
     )
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, payload.language, places_by_id)

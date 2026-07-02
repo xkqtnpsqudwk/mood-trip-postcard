@@ -16,10 +16,24 @@ const localizedTag = (tag, lang, t) => {
   return t.tagLabels?.[normalizeTag(tag)] ?? tag;
 };
 
-export default function RecommendationView({ result, onSelectPlace, onStartOver }) {
+export default function RecommendationView({
+  result,
+  visitedPlaceIds = [],
+  isContinuation = false,
+  onSelectPlace,
+  onStartOver,
+  onEndTrip,
+}) {
   const { t, lang } = useLanguage();
   if (!result) return null;
-  const { clue, tags, places } = result;
+  const {
+    clue,
+    tags,
+    situation_tags: situationTags,
+    avoid_tags: avoidTags,
+    places: allPlaces,
+  } = result;
+  const places = allPlaces.filter((place) => !visitedPlaceIds.includes(place.id));
 
   return (
     <div className="mx-auto w-full max-w-3xl lg:max-w-5xl">
@@ -42,10 +56,32 @@ export default function RecommendationView({ result, onSelectPlace, onStartOver 
             ))}
           </div>
         )}
+        {(situationTags?.length > 0 || avoidTags?.length > 0) && (
+          <div className="mt-4 space-y-1 text-xs text-stone-500 dark:text-zinc-400">
+            {situationTags?.length > 0 && (
+              <p>
+                <span className="font-semibold text-stone-600 dark:text-zinc-300">
+                  {t.recommendation.situationSummaryLabel}:
+                </span>{" "}
+                {situationTags.map((tag) => localizedTag(tag, lang, t)).join(" · ")}
+              </p>
+            )}
+            {avoidTags?.length > 0 && (
+              <p>
+                <span className="font-semibold text-stone-600 dark:text-zinc-300">
+                  {t.recommendation.avoidSummaryLabel}:
+                </span>{" "}
+                {avoidTags.map((tag) => localizedTag(tag, lang, t)).join(" · ")}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <h3 className="mt-8 text-center text-lg font-medium text-stone-700 dark:text-zinc-200">
-        {t.recommendation.spotsHeading}
+        {isContinuation
+          ? t.recommendation.continuationHeading
+          : t.recommendation.spotsHeading}
       </h3>
       {places.length > 0 ? (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -55,15 +91,37 @@ export default function RecommendationView({ result, onSelectPlace, onStartOver 
               onClick={() => onSelectPlace(place)}
               className="group flex flex-col rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-rose-200 hover:shadow-[0_16px_30px_-10px_rgba(251,113,133,0.35)] dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-fuchsia-500/50 dark:hover:shadow-[0_0_20px_rgba(232,68,255,0.25)]"
             >
-              <span className="text-base font-semibold text-stone-800 group-hover:text-rose-500 dark:text-zinc-100 dark:group-hover:text-fuchsia-300">
-                {localized(place.name_i18n, lang) || place.name}
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-base font-semibold text-stone-800 group-hover:text-rose-500 dark:text-zinc-100 dark:group-hover:text-fuchsia-300">
+                  {localized(place.name_i18n, lang) || place.name}
+                </span>
+                {place.type && (
+                  <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-500 dark:bg-cyan-950/50 dark:text-cyan-300">
+                    {place.type}
+                  </span>
+                )}
+              </div>
+              {place.duration_labels?.length > 0 && (
+                <span className="mt-1 text-[11px] text-stone-400 dark:text-zinc-500">
+                  {place.duration_labels.join(" / ")}
+                </span>
+              )}
               <span className="mt-2 text-sm text-stone-500 dark:text-zinc-400">
                 {localized(place.description_i18n, lang) || place.description}
               </span>
               <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
                 {localized(place.mood_tags_i18n, lang) || place.mood_tags}
               </span>
+              {place.reason && (
+                <p className="mt-3 text-xs italic text-stone-500 dark:text-zinc-400">
+                  {place.reason}
+                </p>
+              )}
+              {place.avoid_warnings?.length > 0 && (
+                <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+                  {t.recommendation.avoidWarningPrefix} {place.avoid_warnings.join(", ")}
+                </p>
+              )}
               <span className="mt-4 text-sm font-medium text-rose-400 dark:text-cyan-400">
                 {t.recommendation.visitCta}
               </span>
@@ -72,11 +130,19 @@ export default function RecommendationView({ result, onSelectPlace, onStartOver 
         </div>
       ) : (
         <p className="mx-auto mt-4 max-w-xl rounded-2xl bg-white/70 px-5 py-4 text-center text-sm text-stone-500 shadow-sm ring-1 ring-white/60 dark:bg-zinc-900/60 dark:text-zinc-400 dark:ring-fuchsia-500/20">
-          {t.recommendation.noMatches}
+          {isContinuation ? t.recommendation.allVisited : t.recommendation.noMatches}
         </p>
       )}
 
-      <div className="mt-6 text-center">
+      <div className="mt-6 flex justify-center gap-4 text-center">
+        {isContinuation && (
+          <button
+            onClick={onEndTrip}
+            className="text-sm font-medium text-rose-400 underline-offset-4 hover:text-rose-500 hover:underline dark:text-fuchsia-400 dark:hover:text-fuchsia-300"
+          >
+            {t.recommendation.endTrip}
+          </button>
+        )}
         <button
           onClick={onStartOver}
           className="text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"

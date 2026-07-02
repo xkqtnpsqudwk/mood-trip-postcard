@@ -3,6 +3,39 @@ import { fetchArchive } from "../api";
 import Postcard from "./Postcard";
 import { useLanguage } from "../LanguageContext";
 
+function formatDate(isoString, locale) {
+  const date = new Date(isoString.replace(" ", "T") + "Z");
+  if (Number.isNaN(date.getTime())) return isoString;
+  return date.toLocaleDateString(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function groupByTrip(postcards) {
+  const tripsById = new Map();
+  for (const postcard of postcards) {
+    const key = postcard.trip_id || `untitled-${postcard.id}`;
+    if (!tripsById.has(key)) {
+      tripsById.set(key, []);
+    }
+    tripsById.get(key).push(postcard);
+  }
+  const trips = Array.from(tripsById.values()).map((tripPostcards) => {
+    const sorted = [...tripPostcards].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    );
+    return { tripId: sorted[0].trip_id, city: sorted[0].city, postcards: sorted };
+  });
+  trips.sort(
+    (a, b) =>
+      new Date(b.postcards[b.postcards.length - 1].created_at) -
+      new Date(a.postcards[a.postcards.length - 1].created_at)
+  );
+  return trips;
+}
+
 function PostcardModal({ postcard, onClose }) {
   const { t } = useLanguage();
 
@@ -82,15 +115,34 @@ export default function ArchiveTab({ refreshKey }) {
     );
   }
 
+  const trips = groupByTrip(postcards);
+
   return (
     <>
-      <div className="mx-auto grid w-full max-w-5xl gap-6 sm:grid-cols-2 lg:max-w-6xl lg:grid-cols-3 xl:max-w-7xl xl:grid-cols-4">
-        {postcards.map((postcard) => (
-          <Postcard
-            key={postcard.id}
-            postcard={postcard}
-            onOpen={() => setSelectedPostcard(postcard)}
-          />
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 xl:max-w-7xl">
+        {trips.map((trip) => (
+          <section key={trip.tripId}>
+            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-stone-200 pb-2 dark:border-zinc-800">
+              <h3 className="font-[family-name:var(--font-display)] text-lg text-stone-800 dark:text-zinc-100">
+                {t.cities[trip.city] ?? trip.city}
+              </h3>
+              <span className="text-xs text-stone-400 dark:text-zinc-500">
+                {formatDate(trip.postcards[0].created_at, t.postcard.locale)}
+              </span>
+              <span className="text-xs text-stone-400 dark:text-zinc-500">
+                {t.archive.stopsCount(trip.postcards.length)}
+              </span>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {trip.postcards.map((postcard) => (
+                <Postcard
+                  key={postcard.id}
+                  postcard={postcard}
+                  onOpen={() => setSelectedPostcard(postcard)}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
       {selectedPostcard && (

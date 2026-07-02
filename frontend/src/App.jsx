@@ -43,6 +43,8 @@ function AppContent() {
   const [isCreatingPostcard, setIsCreatingPostcard] = useState(false);
   const [error, setError] = useState(null);
   const [archiveRefreshKey, setArchiveRefreshKey] = useState(0);
+  const [tripId, setTripId] = useState(null);
+  const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
 
   const tabs = [
     { id: "create", label: t.tabCreate },
@@ -55,15 +57,19 @@ function AppContent() {
     setSelectedPlace(null);
     setCreatedPostcard(null);
     setError(null);
+    setTripId(null);
+    setVisitedPlaceIds([]);
   };
 
-  const handleMoodSubmit = async (selectedCity, moodText) => {
+  const handleMoodSubmit = async (formState) => {
     setError(null);
     setIsAnalyzing(true);
     try {
-      const result = await analyzeMood(selectedCity, moodText, lang);
-      setCity(selectedCity);
+      const result = await analyzeMood({ ...formState, language: lang });
+      setCity(formState.city);
       setAnalyzeResult(result);
+      setTripId(crypto.randomUUID());
+      setVisitedPlaceIds([]);
       setStep("recommend");
     } catch {
       setError(t.errors.analyze);
@@ -81,8 +87,21 @@ function AppContent() {
     setError(null);
     setIsCreatingPostcard(true);
     try {
-      const postcard = await createPostcard(city, selectedPlace.id, review, lang);
+      const remaining = (analyzeResult?.places || []).filter(
+        (place) =>
+          place.id !== selectedPlace.id && !visitedPlaceIds.includes(place.id)
+      );
+      const nextPlaceId = remaining[0]?.id ?? null;
+      const postcard = await createPostcard(
+        city,
+        selectedPlace.id,
+        review,
+        lang,
+        tripId,
+        nextPlaceId
+      );
       setCreatedPostcard(postcard);
+      setVisitedPlaceIds((ids) => [...ids, selectedPlace.id]);
       setStep("postcard");
       setArchiveRefreshKey((key) => key + 1);
     } catch {
@@ -91,6 +110,21 @@ function AppContent() {
       setIsCreatingPostcard(false);
     }
   };
+
+  const handleContinueTrip = () => {
+    setSelectedPlace(null);
+    setCreatedPostcard(null);
+    setStep("recommend");
+  };
+
+  const handleEndTrip = () => {
+    resetFlow();
+    setActiveTab("archive");
+  };
+
+  const hasRemainingStops = (analyzeResult?.places || []).some(
+    (place) => !visitedPlaceIds.includes(place.id)
+  );
 
   return (
     <div className="min-h-dvh px-4 py-6 sm:py-10">
@@ -154,8 +188,11 @@ function AppContent() {
             {step === "recommend" && (
               <RecommendationView
                 result={analyzeResult}
+                visitedPlaceIds={visitedPlaceIds}
+                isContinuation={visitedPlaceIds.length > 0}
                 onSelectPlace={handleSelectPlace}
                 onStartOver={resetFlow}
+                onEndTrip={handleEndTrip}
               />
             )}
             {step === "review" && selectedPlace && (
@@ -173,18 +210,26 @@ function AppContent() {
                   {t.postcardArrived}
                 </p>
                 <Postcard postcard={createdPostcard} defaultFlipped={false} />
-                <div className="mt-6 flex justify-center gap-4">
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  {hasRemainingStops && (
+                    <button
+                      onClick={handleContinueTrip}
+                      className="rounded-xl bg-rose-400 px-5 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
+                    >
+                      {t.findNextStop}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleEndTrip}
+                    className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    {t.endTrip}
+                  </button>
                   <button
                     onClick={resetFlow}
                     className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
                   >
                     {t.planAnother}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("archive")}
-                    className="rounded-xl bg-rose-400 px-5 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
-                  >
-                    {t.viewArchive}
                   </button>
                 </div>
               </div>
