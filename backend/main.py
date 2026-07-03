@@ -1,5 +1,4 @@
 """FastAPI application for MoodTrip."""
-import re
 import sqlite3
 import uuid
 from contextlib import asynccontextmanager
@@ -210,70 +209,6 @@ def put_preferences(
     return PreferencesOut(style_text=_row_value(row, "style_text"))
 
 
-EMOTION_TAG_ALIASES = {
-    "angry": {"calm", "peaceful", "restorative", "reflective"},
-    "anger": {"calm", "peaceful", "restorative", "reflective"},
-    "annoyed": {"calm", "quiet", "restorative"},
-    "adventure": {"adventurous", "curious", "energetic", "free-spirited"},
-    "adventurous": {"adventurous", "curious", "energetic", "free-spirited"},
-    "anxious": {"calm", "peaceful", "grounded", "restorative"},
-    "anxiety": {"calm", "peaceful", "grounded", "restorative"},
-    "bored": {"curious", "inspired", "adventurous", "lively"},
-    "burned-out": {"restorative", "slow-paced", "peaceful", "refreshing"},
-    "confused": {"reflective", "contemplative", "grounded", "curious"},
-    "creative": {"inspired", "curious", "free-spirited"},
-    "depressed": {"restorative", "peaceful", "reflective", "grounded"},
-    "dreamy": {"dreamy", "romantic", "peaceful"},
-    "empty": {"reflective", "contemplative", "restorative"},
-    "energetic": {"energetic", "joyful", "social", "lively"},
-    "excited": {"energetic", "joyful", "adventurous", "social"},
-    "fearful": {"peaceful", "grounded", "calm"},
-    "free": {"free-spirited", "refreshing", "adventurous"},
-    "happy": {"joyful", "content", "social", "refreshing"},
-    "healing": {"restorative", "peaceful", "grounded"},
-    "heartbroken": {"melancholy", "reflective", "restorative"},
-    "hopeful": {"hopeful", "refreshing", "dreamy"},
-    "lonely": {"solitary", "reflective", "contemplative", "calm"},
-    "lost": {"reflective", "contemplative", "grounded"},
-    "love": {"romantic", "dreamy", "hopeful"},
-    "melancholy": {"melancholy", "reflective", "solitary"},
-    "nervous": {"calm", "peaceful", "grounded"},
-    "nostalgic": {"nostalgic", "timeless", "reflective"},
-    "overwhelmed": {"calm", "quiet", "restorative", "slow-paced"},
-    "peaceful": {"peaceful", "calm", "serene", "quiet"},
-    "restless": {"adventurous", "refreshing", "free-spirited", "urban"},
-    "romantic": {"romantic", "dreamy", "hopeful"},
-    "sad": {"melancholy", "reflective", "restorative", "solitary"},
-    "sadness": {"melancholy", "reflective", "restorative", "solitary"},
-    "scared": {"peaceful", "grounded", "calm"},
-    "stressed": {"calm", "peaceful", "restorative", "refreshing"},
-    "stress": {"calm", "peaceful", "restorative", "refreshing"},
-    "stuffy": {"refreshing", "riverside", "scenic"},
-    "tired": {"restorative", "slow-paced", "peaceful", "content"},
-    "worn-out": {"restorative", "slow-paced", "peaceful"},
-}
-
-
-def _normalize_tag(tag: str) -> str:
-    return re.sub(r"[\s_]+", "-", tag.strip().lower())
-
-
-def _expand_tags(tag_list: list[str]) -> set[str]:
-    expanded = set()
-    for tag in tag_list:
-        normalized = _normalize_tag(tag)
-        if not normalized:
-            continue
-        expanded.add(normalized)
-        expanded.update(EMOTION_TAG_ALIASES.get(normalized, set()))
-    return expanded
-
-
-def _tag_set(value: str) -> set[str]:
-    """Normalized (hyphenated) tag set, for fuzzy vibe/mood matching."""
-    return {_normalize_tag(t) for t in (value or "").split(",") if t.strip()}
-
-
 def _code_set(value: str) -> set[str]:
     """Exact fixed-vocabulary codes (see tags.py), for situation/avoid matching."""
     return {c.strip().lower() for c in (value or "").split(",") if c.strip()}
@@ -393,35 +328,81 @@ def _tag_out(vocab: dict, code: str) -> LocalizedTag:
     return LocalizedTag(en=entry.get("en", code), ko=entry.get("ko", code))
 
 
+def _extract_style_preferences(style_text: str) -> tuple[set[str], set[str]]:
+    source = (style_text or "").lower()
+    preference_codes = set()
+    avoid_codes = set()
+    preference_aliases = {
+        "walking": {"walk", "walking", "stroll", "wander", "산책", "걷"},
+        "riverside": {"river", "riverside", "water", "stream", "강변", "한강", "물가", "하천"},
+        "photo": {"photo", "photography", "picture", "사진", "포토"},
+        "quiet": {"quiet", "calm", "peaceful", "조용", "차분", "고요"},
+        "night_view": {"night view", "night views", "skyline", "야경", "밤풍경"},
+        "exhibition": {"exhibition", "museum", "gallery", "art", "전시", "미술관", "갤러리"},
+        "shopping": {"shopping", "shop", "market", "쇼핑", "상점", "시장"},
+        "reading": {"reading", "book", "books", "bookstore", "독서", "서점"},
+        "cafe": {"cafe", "cafes", "coffee", "카페", "커피"},
+        "history": {"history", "historic", "palace", "역사", "궁", "궁궐", "전통"},
+    }
+    avoid_aliases = {
+        "crowded": {"crowded", "busy", "crowd", "사람 많", "붐비", "복잡"},
+        "far": {"far", "too far", "먼", "멀리"},
+        "expensive": {"expensive", "pricey", "비싼", "비싸", "가격"},
+        "complex_route": {"complex route", "complicated route", "복잡한 동선", "환승"},
+        "long_wait": {"long wait", "queue", "wait", "긴 대기", "줄"},
+        "long_distance": {"long distance", "long travel", "긴 이동", "이동이 긴"},
+        "too_touristy": {"touristy", "too touristy", "관광지스러운", "관광객"},
+    }
+
+    for code, label_map in tags.PREFERENCES.items():
+        words = {
+            code.replace("_", " "),
+            label_map["en"].lower(),
+            label_map["ko"].lower(),
+            *preference_aliases.get(code, set()),
+        }
+        if any(word and word in source for word in words):
+            preference_codes.add(code)
+
+    for code, label_map in tags.AVOID.items():
+        words = {
+            code.replace("_", " "),
+            label_map["en"].lower(),
+            label_map["ko"].lower(),
+            *avoid_aliases.get(code, set()),
+        }
+        if any(word and word in source for word in words):
+            avoid_codes.add(code)
+
+    return preference_codes, avoid_codes
+
+
 def _rank_places(
     places: list[sqlite3.Row],
-    vibe_tags: list[str],
-    avoid_codes: list[str],
+    preference_codes: set[str],
+    avoid_codes: set[str],
     language: str = "en",
 ) -> list[PlaceOut]:
-    """Score places by vibe overlap and penalize avoid conflicts.
+    """Score places by saved travel style, not by the current mood sentence.
 
-    - vibe: AI-extracted tags from the current mood plus the traveler's saved
-      free-text travel style, matched (with alias expansion) against a
-      place's mood_tags + preference_tags.
-    - avoid: AI-extracted avoid keywords (from a fixed vocabulary) matched
-      against a place's avoid_tags, which lowers (not eliminates) that
-      place's ranking.
+    The current mood is used to create the poetic clue and display tags. Place
+    ranking stays anchored to the user's saved preferences/avoidances so the
+    recommendation feels consistent rather than pretending to infer exact
+    geography from a mood sentence.
     """
-    user_vibe = _expand_tags(vibe_tags)
     user_avoid = {c.strip().lower() for c in avoid_codes if c}
 
     scored = []
-    for place in places:
-        place_vibe = _tag_set(place["mood_tags"]) | _tag_set(_row_value(place, "preference_tags"))
+    for index, place in enumerate(places):
+        place_preferences = _code_set(_row_value(place, "preference_tags"))
         place_avoid = _code_set(_row_value(place, "avoid_tags"))
 
-        vibe_overlap = len(user_vibe & place_vibe)
-        if vibe_overlap == 0:
-            continue
-
+        preference_overlap = len(preference_codes & place_preferences)
         conflicts = sorted(user_avoid & place_avoid)
-        score = vibe_overlap * 2 - len(conflicts) * 2
+        score = preference_overlap * 4 - len(conflicts) * 3
+        if not preference_codes:
+            score = max(1, 20 - index)
+
         scored.append((score, place, conflicts))
 
     scored.sort(key=lambda triple: triple[0], reverse=True)
@@ -429,16 +410,6 @@ def _rank_places(
         _row_to_place(place, score, language, conflicts)
         for score, place, conflicts in scored
     ]
-
-
-def _english_tags(tag_list: list[dict[str, str] | str]) -> list[str]:
-    values = []
-    for tag in tag_list:
-        if isinstance(tag, dict):
-            values.append(str(tag.get("en", "")))
-        else:
-            values.append(str(tag))
-    return values
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
@@ -472,12 +443,12 @@ def analyze(
     combined_tags = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in analysis["tags"]]
     avoid_tag_out = [_tag_out(tags.AVOID, code) for code in analysis["avoid"]]
 
-    vibe_matching_tags = _english_tags(analysis["tags"])
+    preference_codes, ranking_avoid_codes = _extract_style_preferences(style_text)
 
     ranked = _rank_places(
         places,
-        vibe_tags=vibe_matching_tags,
-        avoid_codes=analysis["avoid"],
+        preference_codes=preference_codes,
+        avoid_codes=ranking_avoid_codes,
         language=payload.language,
     )
     # Return a larger pool than a single card grid needs so the frontend can

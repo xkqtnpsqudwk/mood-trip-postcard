@@ -95,23 +95,11 @@ def analyze_mood(
     *,
     style_text: str | None = None,
 ) -> dict:
-    """Analyze the traveler's free-text mood sentence, optionally alongside a
-    saved free-text travel-style description (My Page), and return bilingual
-    tags, an avoid list, and a bilingual clue.
+    """Analyze only the traveler's free-text mood sentence for display.
 
-    style_text is whatever the traveler wrote about preferred/avoided places,
-    moods, and situations (e.g. "I like quiet riverside walks and avoid
-    crowds") - written like a prompt, not picked from a fixed set of options.
-    The service targets solo travelers by default, so companionship should not
-    be inferred from this field. This call reads both mood_text (how they feel
-    right now) and style_text (what places or situations they prefer) together and:
-    (a) extracts 3-6 short vibe/preference keywords blending both,
-    (b) extracts 0-4 "avoid" keywords ONLY from a fixed small vocabulary
-        (crowded, far, expensive, complex_route, long_wait, long_distance,
-        too_touristy) when clearly implied, so they can be matched exactly
-        against place data,
-    (c) writes one poetic metaphorical clue sentence that hints at the kind
-        of place they should visit.
+    Place ranking is handled separately from saved travel-style preferences.
+    This function creates the placebo layer: emotional display tags, avoid
+    labels for user-facing context, and a poetic clue sentence.
 
     Returns: {"tags": [{"en": str, "ko": str}, ...], "avoid": [str, ...],
               "clue": {"en": str, "ko": str}}
@@ -120,15 +108,12 @@ def analyze_mood(
     avoid_vocab = ", ".join(tags.AVOID.keys())
     preference_vocab = ", ".join(tags.PREFERENCES.keys())
     system_prompt = (
-        "You are an emotionally perceptive travel companion. Given a city, a "
-        "traveler's current mood, and optionally a saved free-text description "
-        "of their preferred/avoided places, moods, and situations, do three "
-        "things. The traveler is assumed to be solo by default, so do not ask "
-        "for or infer companionship style. First, extract 3-6 "
-        "short emotional/vibe/preference keywords that capture how they feel "
-        "and what they like, blending both the current mood and the saved "
-        "style; when a keyword naturally matches one of these known place "
-        f"tags, prefer that exact word: {preference_vocab}. Second, extract "
+        "You are an emotionally perceptive travel companion. Given a city and "
+        "a traveler's current mood, do three things. The traveler is assumed "
+        "to be solo by default, so do not ask for or infer companionship "
+        "style. First, extract 3-6 short emotional/vibe keywords that capture "
+        "how they feel right now. When a keyword naturally matches one of "
+        f"these known display tags, prefer that exact word: {preference_vocab}. Second, extract "
         "0-4 'avoid' keywords, but ONLY from this fixed list, and ONLY when "
         f"clearly implied by the mood or saved style: {avoid_vocab}. Do not "
         "invent avoid keywords outside that list; return an empty avoid list "
@@ -146,8 +131,6 @@ def analyze_mood(
     )
 
     context_lines = [f"City: {city}", f"Current mood: {mood_text}"]
-    if style_text and style_text.strip():
-        context_lines.append(f"Saved travel style: {style_text.strip()}")
     context_lines.append(f"Preferred UI language for tone reference: {_language_name(language)}")
     user_prompt = "\n".join(context_lines)
 

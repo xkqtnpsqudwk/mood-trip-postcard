@@ -1226,15 +1226,139 @@ _PLACE_COLUMNS = [
     "reason_ko",
 ]
 
+_PLACE_COPY_OVERRIDES = {
+    ("Paris", "Seine Riverside"): {
+        "reason": "The path stays close to the water, so the city feels present but softened. It works well when you need movement without noise.",
+        "reason_ko": "물가를 따라 걷다 보면 도시는 곁에 있지만 한결 부드럽게 느껴져요. 소란보다 움직임이 필요한 날에 잘 맞아요.",
+    },
+    ("Paris", "Pont des Arts"): {
+        "reason": "This is less a destination than a small pause over the river. Sunset, footsteps, and stray music can shift the mood in just a few minutes.",
+        "reason_ko": "목적지라기보다 강 위에서 잠깐 멈추는 장소에 가까워요. 노을과 발걸음, 가끔 들리는 음악이 기분을 가볍게 바꿔줘요.",
+    },
+    ("Paris", "Montmartre"): {
+        "reason": "The hill has a slightly messy rhythm: stairs, sketch artists, viewpoints, and side streets. It suits a mood that wants sparks rather than silence.",
+        "reason_ko": "계단과 화가들, 전망과 골목이 뒤섞인 리듬이 있어요. 조용함보다 작은 자극과 영감이 필요한 기분에 어울려요.",
+    },
+    ("Paris", "Luxembourg Gardens"): {
+        "reason": "Chairs, fountains, tree shade, and the slow pace of locals make the garden feel settled. It is a good place to sit before deciding what you feel next.",
+        "reason_ko": "의자와 분수, 나무 그늘, 현지인의 느린 속도가 안정감을 줘요. 다음 기분을 정하기 전에 잠시 앉아 있기 좋아요.",
+    },
+    ("Paris", "Canal Saint-Martin"): {
+        "reason": "The canal has a casual evening texture: footbridges, cafe fronts, and water moving through the neighborhood. It feels local without becoming too quiet.",
+        "reason_ko": "철제 다리와 카페, 동네 사이로 흐르는 물길이 편안한 저녁 결을 만들어요. 너무 조용하지 않으면서도 로컬한 분위기가 있어요.",
+    },
+    ("Paris", "Le Marais"): {
+        "reason": "The appeal is in drifting between contrasts: old courtyards, small galleries, busy corners, and quiet lanes. Curiosity has plenty of room here.",
+        "reason_ko": "오래된 안뜰, 작은 갤러리, 붐비는 모퉁이와 조용한 골목이 번갈아 나와요. 호기심이 머물 여지가 많은 동네예요.",
+    },
+    ("Paris", "Rue Cremieux"): {
+        "reason": "The street is brief, colorful, and almost unreal. It is best treated as a small visual lift rather than a place to spend a long afternoon.",
+        "reason_ko": "짧고 색감이 또렷해서 현실보다 살짝 엽서처럼 느껴지는 골목이에요. 오래 머물기보다 기분을 가볍게 들어 올리는 장면에 가까워요.",
+    },
+    ("Paris", "Ile Saint-Louis"): {
+        "reason": "Water frames the island on both sides, and the streets keep their voice low. It gives central Paris a surprisingly private pace.",
+        "reason_ko": "양쪽으로 강이 감싸고 거리의 목소리가 낮게 유지돼요. 파리 한복판에서도 의외로 사적인 속도를 느낄 수 있어요.",
+    },
+    ("Paris", "Pere Lachaise Cemetery"): {
+        "reason": "Tree shade, old stone, and long paths make the cemetery feel removed from ordinary traffic. The silence here has weight, not emptiness.",
+        "reason_ko": "나무 그늘과 오래된 비석, 긴 길들이 일상의 흐름에서 한 발 떨어진 감각을 줘요. 이곳의 침묵은 비어 있다기보다 묵직해요.",
+    },
+    ("Paris", "Tuileries Garden"): {
+        "reason": "The garden is formal, but the people passing through keep it alive. It gives you symmetry without making the walk feel stiff.",
+        "reason_ko": "정돈된 정원이지만 오가는 사람들이 있어 살아 있는 느낌이 있어요. 반듯한 풍경 속에서도 산책이 딱딱하게 굳지 않아요.",
+    },
+    ("Paris", "Marche des Enfants Rouges"): {
+        "reason": "The market folds many smells and languages into a small covered space. It feels lively in a grounded, everyday way.",
+        "reason_ko": "작은 실내 공간 안에 여러 냄새와 언어가 겹쳐져요. 들뜬 관광지라기보다 일상에 가까운 활기가 느껴져요.",
+    },
+    ("Paris", "Parc de la Villette"): {
+        "reason": "The park feels wide and slightly strange, with open lawns, canals, and futuristic shapes. It leaves room for wandering without a fixed route.",
+        "reason_ko": "넓은 잔디와 운하, 미래적인 구조물이 있어 조금 낯선 여백이 느껴져요. 정해진 동선 없이 돌아다니기 좋아요.",
+    },
+    ("Seoul", "Han River Park"): {
+        "reason": "The scale of the river gives your mood somewhere to spread out. Even a short stop can feel open, airy, and less crowded inside your head.",
+        "reason_ko": "강의 스케일이 커서 마음이 넓게 풀리는 느낌이 있어요. 짧게 머물러도 머릿속이 조금 덜 복잡해지는 장소예요.",
+    },
+    ("Seoul", "Bukchon Hanok Village"): {
+        "reason": "The narrow alleys ask you to slow down. Rooflines, stone walls, and glimpses of the city make the walk feel careful rather than rushed.",
+        "reason_ko": "좁은 골목이 자연스럽게 속도를 늦추게 해요. 지붕선과 돌담, 도시가 스치는 풍경 덕분에 서두르기보다 조심히 걷게 됩니다.",
+    },
+    ("Seoul", "Hongdae"): {
+        "reason": "Hongdae is loud in a useful way when you need outside energy. Music, signs, and passing crowds keep the mood moving.",
+        "reason_ko": "밖에서 에너지를 받아야 하는 날에는 홍대의 소란이 오히려 도움이 돼요. 음악과 간판, 지나가는 사람들이 기분을 계속 움직이게 해요.",
+    },
+    ("Seoul", "Seonyudo Park"): {
+        "reason": "Old industrial traces sit quietly inside the garden, so the place feels calm without being plain. It is gentle enough for a low-energy day.",
+        "reason_ko": "옛 정수장의 흔적이 정원 안에 조용히 남아 있어 밋밋하지 않은 고요함이 있어요. 에너지가 낮은 날에도 부담이 적어요.",
+    },
+    ("Seoul", "Cheonggyecheon Stream"): {
+        "reason": "The stream cuts a quieter line through downtown. It lets you stay in the city while stepping slightly below its speed.",
+        "reason_ko": "청계천은 도심 사이로 조용한 선을 하나 내줘요. 도시 안에 있으면서도 그 속도에서 살짝 내려올 수 있어요.",
+    },
+    ("Seoul", "Dongdaemun Design Plaza"): {
+        "reason": "The curves, lights, and open plaza make the area feel almost unreal at night. It sharpens the mood rather than calming it down.",
+        "reason_ko": "곡선 건축과 조명, 넓은 광장이 밤에는 살짝 비현실적으로 느껴져요. 마음을 가라앉히기보다 감각을 또렷하게 깨워줘요.",
+    },
+    ("Seoul", "Insadong"): {
+        "reason": "Tea houses, craft shops, and gallery signs slow the street into small stops. It has enough detail to reward unhurried looking.",
+        "reason_ko": "찻집과 공예품 상점, 갤러리 간판들이 거리를 작은 정거장들로 나눠줘요. 천천히 볼수록 디테일이 살아나는 곳이에요.",
+    },
+    ("Seoul", "Gwangjang Market"): {
+        "reason": "This place is all texture: steam, voices, steel counters, quick plates of food. It fits a mood that wants the city to feel vivid again.",
+        "reason_ko": "김이 오르는 음식, 목소리, 금속 식탁, 빠르게 오가는 접시들까지 감각이 선명해요. 도시가 다시 생생하게 느껴지길 바랄 때 어울려요.",
+    },
+    ("Seoul", "Myeongdong"): {
+        "reason": "Neon, food carts, cosmetics shops, and crossing crowds make the district almost overstimulating. That intensity is exactly its character.",
+        "reason_ko": "네온사인과 길거리 음식, 화장품 매장, 오가는 인파가 감각을 꽉 채워요. 조금 과할 정도의 강도가 이 거리의 성격이에요.",
+    },
+    ("Seoul", "Seochon Village"): {
+        "reason": "Small galleries, low buildings, and cafe windows keep the neighborhood at a human scale. Wandering here feels unhurried rather than directed.",
+        "reason_ko": "작은 갤러리와 낮은 건물, 카페 창들이 동네의 스케일을 사람 가까이에 둬요. 끌려다니지 않고 천천히 헤매기 좋아요.",
+    },
+    ("Seoul", "Yeouido Hangang Park"): {
+        "reason": "The lawns and river views give the park a broad, open rhythm. It feels especially light when the season changes around the water.",
+        "reason_ko": "넓은 잔디와 강 전망이 크고 열린 리듬을 만들어줘요. 물가 주변으로 계절이 바뀔 때 특히 가볍게 느껴지는 공원이에요.",
+    },
+    ("Seoul", "Deoksugung Stone Wall Road"): {
+        "reason": "The stone wall gives the walk a steady edge, while trees soften the city around it. It is simple, but that simplicity is the point.",
+        "reason_ko": "돌담이 산책의 선을 잡아주고, 가로수가 주변 도시를 부드럽게 눌러줘요. 단순하지만 바로 그 단순함이 좋은 길이에요.",
+    },
+    ("Seoul", "Seongsu-dong Cafe Street"): {
+        "reason": "Old factory surfaces and polished cafes sit side by side. The area feels useful when you want something current without losing rough edges.",
+        "reason_ko": "오래된 공장 표면과 세련된 카페가 나란히 있어요. 거칠고 현재적인 분위기를 동시에 느끼고 싶을 때 잘 맞아요.",
+    },
+    ("Seoul", "Ttukseom Hangang Park"): {
+        "reason": "Grass, river wind, and skyline views make the park feel relaxed but not empty. It gives you space without asking for a full plan.",
+        "reason_ko": "잔디와 강바람, 스카이라인이 있어 느슨하지만 비어 보이지 않아요. 큰 계획 없이도 머물 공간을 내어주는 곳이에요.",
+    },
+}
+
+
+def _place_with_overrides(place: dict) -> dict:
+    merged = dict(place)
+    merged.update(_PLACE_COPY_OVERRIDES.get((place["city"], place["name"]), {}))
+    return merged
+
 
 def _seed_places(cursor: sqlite3.Cursor) -> None:
     existing = {
         (row["city"].lower(), row["name"].lower())
         for row in cursor.execute("SELECT city, name FROM places").fetchall()
     }
+    update_columns = [column for column in _PLACE_COLUMNS if column not in ("city", "name")]
+    update_sql = ", ".join(f"{column} = ?" for column in update_columns)
+    for raw_place in _PLACES:
+        place = _place_with_overrides(raw_place)
+        if (place["city"].lower(), place["name"].lower()) not in existing:
+            continue
+        cursor.execute(
+            f"UPDATE places SET {update_sql} WHERE city = ? COLLATE NOCASE AND name = ? COLLATE NOCASE",
+            tuple(place.get(column, "") or ("" if column != "image_url" else None) for column in update_columns)
+            + (place["city"], place["name"]),
+        )
     rows = [
         tuple(place.get(column, "") or ("" if column != "image_url" else None) for column in _PLACE_COLUMNS)
-        for place in _PLACES
+        for place in (_place_with_overrides(place) for place in _PLACES)
         if (place["city"].lower(), place["name"].lower()) not in existing
     ]
     if not rows:
