@@ -13,7 +13,7 @@ export default function Landing({ onContinue }) {
         <button
           type="button"
           onClick={() => setShowAuth(false)}
-          className="mx-auto mt-4 block text-center text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+          className="mx-auto mt-4 block text-center text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           {t.landing.backToIntro}
         </button>

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title">
-  <title id="title">Mood Trip Postcard</title>
+  <title id="title">MoodTrip</title>
   <defs>
     <linearGradient id="g" x1="3" y1="5" x2="29" y2="27" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#fb7185"/>

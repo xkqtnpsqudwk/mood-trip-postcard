@@ -1,4 +1,4 @@
-"""FastAPI application for Mood Trip Postcard."""
+"""FastAPI application for MoodTrip."""
 import re
 import sqlite3
 import uuid
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Mood Trip Postcard API", lifespan=lifespan)
+app = FastAPI(title="MoodTrip API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,6 +111,8 @@ class PostcardRequest(BaseModel):
     review: str
     language: str = "en"
     trip_id: str | None = None
+    image_base64: str | None = None
+    photo_base64_list: list[str] = []
 
 
 class NextPlaceRequest(BaseModel):
@@ -525,9 +527,20 @@ def create_postcard(
             status_code=502, detail=f"Postcard generation failed: {exc}"
         ) from exc
 
-    image_base64 = ai_service.generate_postcard_image(
-        city=payload.city, place_name=place["name"], message=generated["message"]["en"]
+    source_images = payload.photo_base64_list or (
+        [payload.image_base64] if payload.image_base64 else []
     )
+    try:
+        image_base64 = ai_service.generate_postcard_image(
+            city=payload.city,
+            place_name=place["name"],
+            message=generated["message"]["en"],
+            source_images_base64=source_images,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Postcard image generation failed: {exc}"
+        ) from exc
 
     trip_id = payload.trip_id or str(uuid.uuid4())
 

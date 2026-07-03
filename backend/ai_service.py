@@ -1,19 +1,16 @@
-"""Wrapper around the NVIDIA NIM API for mood analysis, postcard generation,
-and postcard image generation (via NVIDIA's hosted FLUX.1-dev NIM)."""
+"""OpenAI-backed AI helpers for mood analysis, postcard text, and images."""
+import base64
 import json
 import os
 import re
 
-import httpx
 from openai import OpenAI
 
 import tags
 
-NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-NIM_MODEL = "meta/llama-4-maverick-17b-128e-instruct"
-NIM_TIMEOUT_SECONDS = 90.0
-
-NIM_IMAGE_URL = "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev"
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-5.4")
+OPENAI_IMAGE_MODEL = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5")
+OPENAI_TIMEOUT_SECONDS = 90.0
 
 LANGUAGE_NAMES = {"ko": "Korean", "en": "English"}
 
@@ -27,14 +24,10 @@ def _language_name(language: str) -> str:
 def _get_client() -> OpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("NVIDIA_NIM_API_KEY")
+        api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError("NVIDIA_NIM_API_KEY is not set")
-        _client = OpenAI(
-            base_url=NIM_BASE_URL,
-            api_key=api_key,
-            timeout=NIM_TIMEOUT_SECONDS,
-        )
+            raise RuntimeError("OPENAI_API_KEY is not set")
+        _client = OpenAI(api_key=api_key, timeout=OPENAI_TIMEOUT_SECONDS)
     return _client
 
 
@@ -67,6 +60,32 @@ def _localized_tags(value) -> list[dict[str, str]]:
         if en:
             tags.append({"en": en, "ko": ko})
     return tags
+
+
+def _image_file_from_base64(value: str, index: int):
+    match = re.match(r"^data:(image/[^;]+);base64,(.*)$", value, re.DOTALL)
+    if match:
+        mime_type = match.group(1)
+        base64_data = match.group(2)
+    else:
+        mime_type = "image/jpeg"
+        base64_data = value
+
+    extension = {
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+    }.get(mime_type, "jpg")
+    image_bytes = base64.b64decode(base64_data)
+    return (f"visit-photo-{index}.{extension}", image_bytes, mime_type)
+
+
+def _response_image_base64(response) -> str | None:
+    if not response.data:
+        return None
+    first = response.data[0]
+    return getattr(first, "b64_json", None)
 
 
 def analyze_mood(
@@ -133,13 +152,15 @@ def analyze_mood(
     user_prompt = "\n".join(context_lines)
 
     completion = client.chat.completions.create(
-        model=NIM_MODEL,
+        model=OPENAI_TEXT_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
         max_tokens=600,
+        response_format={"type": "json_object"},
+        timeout=OPENAI_TIMEOUT_SECONDS,
     )
     content = completion.choices[0].message.content
     data = _extract_json(content)
@@ -190,13 +211,15 @@ def generate_postcard(
     )
 
     completion = client.chat.completions.create(
-        model=NIM_MODEL,
+        model=OPENAI_TEXT_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
         max_tokens=700,
+        response_format={"type": "json_object"},
+        timeout=OPENAI_TIMEOUT_SECONDS,
     )
     content = completion.choices[0].message.content
     data = _extract_json(content)
@@ -206,48 +229,60 @@ def generate_postcard(
     }
 
 
-def generate_postcard_image(city: str, place_name: str, message: str) -> str | None:
-    """Generate a postcard photo via NVIDIA's hosted FLUX.1-dev NIM and return
-    base64-encoded JPEG data.
+def generate_postcard_image(
+    city: str,
+    place_name: str,
+    message: str,
+    source_images_base64: list[str] | None = None,
+) -> str | None:
+    """Generate a postcard image and return base64-encoded image data.
 
-    `message` should be the English postcard message from generate_postcard()
-    (not the traveler's raw review) - it's already polished, vivid, English
-    prose written specifically to evoke the mood, which makes a much better
-    image prompt than the raw review and sidesteps FLUX misreading a
-    non-English review.
+    When source images are provided, OpenAI edits them into a travel postcard
+    collage. Otherwise, it generates a new postcard image from the AI-written
+    English postcard message.
 
-    Returns None (rather than raising) on any failure, so a missing key or a
-    slow/failing image provider never blocks postcard creation.
+    Raises on image-generation failure so the caller can ask the user to retry
+    instead of silently saving an imageless postcard.
     """
-    api_key = os.environ.get("NVIDIA_NIM_API_KEY")
-    if not api_key:
-        return None
+    client = _get_client()
+    source_images_base64 = [image for image in (source_images_base64 or []) if image]
 
-    prompt = (
-        f"A beautiful travel postcard photograph of {place_name} in {city}, "
-        f"evoking this feeling: {message}. Warm painterly light, postcard "
-        "aesthetic, no text, no words, no writing anywhere in the image."
-    )
-
-    try:
-        response = httpx.post(
-            NIM_IMAGE_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Accept": "application/json",
-            },
-            json={
-                "prompt": prompt,
-                "width": 1152,
-                "height": 768,
-                "steps": 25,
-            },
-            timeout=NIM_TIMEOUT_SECONDS,
+    if source_images_base64:
+        prompt = (
+            "Create a polished horizontal digital travel postcard collage "
+            f"from the provided visit photos for {place_name} in {city}. "
+            "Preserve the real photographed moments, arrange them like a "
+            "warm modern postcard, improve light and color gently, and do "
+            "not add any text, letters, captions, logos, or watermarks."
         )
-        response.raise_for_status()
-        artifacts = response.json().get("artifacts", [])
-        if not artifacts:
-            return None
-        return artifacts[0].get("base64")
-    except Exception:
-        return None
+        image_files = [
+            _image_file_from_base64(image, index)
+            for index, image in enumerate(source_images_base64[:4], start=1)
+        ]
+        response = client.images.edit(
+            model=OPENAI_IMAGE_MODEL,
+            image=image_files,
+            prompt=prompt,
+            size="1536x1024",
+            quality="medium",
+            timeout=OPENAI_TIMEOUT_SECONDS,
+        )
+    else:
+        prompt = (
+            f"A beautiful horizontal travel postcard photograph of {place_name} "
+            f"in {city}, evoking this feeling: {message}. Warm natural light, "
+            "cinematic but realistic travel photography, postcard aesthetic, "
+            "no text, no words, no writing anywhere in the image."
+        )
+        response = client.images.generate(
+            model=OPENAI_IMAGE_MODEL,
+            prompt=prompt,
+            size="1536x1024",
+            quality="medium",
+            timeout=OPENAI_TIMEOUT_SECONDS,
+        )
+
+    image_base64 = _response_image_base64(response)
+    if not image_base64:
+        raise RuntimeError("OpenAI image response did not include image data")
+    return image_base64

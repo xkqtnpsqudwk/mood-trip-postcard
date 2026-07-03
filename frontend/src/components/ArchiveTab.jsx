@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchArchive } from "../api";
 import Postcard from "./Postcard";
+import SharePanel from "./SharePanel";
 import { useLanguage } from "../LanguageContext";
 
 function formatDate(isoString, locale) {
@@ -52,8 +53,12 @@ function PostcardModal({ postcard, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-3xl p-1"
+        onClick={(event) => event.stopPropagation()}
+      >
         <Postcard postcard={postcard} />
+        <SharePanel postcard={postcard} />
         <button
           onClick={onClose}
           className="mx-auto mt-4 block rounded-full bg-white/90 px-5 py-2 text-sm font-medium text-stone-600 shadow-md transition hover:bg-white dark:bg-zinc-900/90 dark:text-zinc-300 dark:ring-1 dark:ring-fuchsia-500/20 dark:hover:bg-zinc-800"

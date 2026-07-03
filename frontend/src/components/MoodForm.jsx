@@ -76,7 +76,7 @@ export default function MoodForm({ onSubmit, isLoading, onOpenPersonalization })
         {isLoading ? t.moodForm.loading : t.moodForm.submit}
       </button>
       {isLoading && (
-        <p className="mt-3 text-center text-xs text-stone-400 dark:text-zinc-500">
+        <p className="mt-4 rounded-xl bg-stone-50 px-4 py-3 text-center text-sm leading-relaxed text-stone-500 ring-1 ring-stone-100 dark:bg-zinc-950/50 dark:text-zinc-300 dark:ring-fuchsia-500/20">
           {t.moodForm.loadingHint}
         </p>
       )}
@@ -84,7 +84,7 @@ export default function MoodForm({ onSubmit, isLoading, onOpenPersonalization })
         <button
           type="button"
           onClick={onOpenPersonalization}
-          className="mt-4 block w-full text-center text-xs text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+          className="mt-4 block w-full text-center text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           {t.moodForm.personalizationHint}
         </button>

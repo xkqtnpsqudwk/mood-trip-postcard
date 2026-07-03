@@ -81,7 +81,7 @@ export default function AuthForm({ onSuccess }) {
           setMode(isLogin ? "signup" : "login");
           setError(null);
         }}
-        className="mt-4 block w-full text-center text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+        className="mt-4 block w-full text-center text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
       >
         {isLogin ? t.auth.switchToSignup : t.auth.switchToLogin}
       </button>

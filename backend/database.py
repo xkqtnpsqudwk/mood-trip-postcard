@@ -1,4 +1,4 @@
-"""SQLite database setup and seeding for Mood Trip Postcard."""
+"""SQLite database setup and seeding for MoodTrip."""
 import sqlite3
 from pathlib import Path
 

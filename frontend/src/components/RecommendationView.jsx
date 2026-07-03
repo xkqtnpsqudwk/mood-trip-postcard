@@ -37,6 +37,32 @@ export default function RecommendationView({
   const selectedPlace =
     places.find((place) => place.id === selectedPlaceId) || places[0] || null;
   const activePlaceId = hoveredPlaceId || selectedPlace?.id || null;
+  const actionButtons = (
+    <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-center">
+      {isContinuation && (
+        <button
+          onClick={onEndTrip}
+          className="text-sm font-semibold text-rose-500 underline-offset-4 hover:text-rose-600 hover:underline dark:text-fuchsia-300 dark:hover:text-fuchsia-200"
+        >
+          {t.recommendation.endTrip}
+        </button>
+      )}
+      <button
+        onClick={onStartOver}
+        className="text-sm font-medium text-stone-600 underline-offset-4 hover:text-stone-800 hover:underline dark:text-zinc-300 dark:hover:text-zinc-100"
+      >
+        {t.recommendation.startOver}
+      </button>
+      {!isContinuation && (
+        <button
+          onClick={onDismiss}
+          className="text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          {t.recommendation.dismiss}
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="mx-auto w-full max-w-3xl lg:max-w-5xl">
@@ -76,6 +102,7 @@ export default function RecommendationView({
           ? t.recommendation.continuationHeading
           : t.recommendation.spotsHeading}
       </h3>
+      {actionButtons}
       {places.length > 0 ? (
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <CityMiniMap
@@ -139,30 +166,6 @@ export default function RecommendationView({
         </p>
       )}
 
-      <div className="mt-6 flex justify-center gap-4 text-center">
-        {isContinuation && (
-          <button
-            onClick={onEndTrip}
-            className="text-sm font-medium text-rose-400 underline-offset-4 hover:text-rose-500 hover:underline dark:text-fuchsia-400 dark:hover:text-fuchsia-300"
-          >
-            {t.recommendation.endTrip}
-          </button>
-        )}
-        <button
-          onClick={onStartOver}
-          className="text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
-        >
-          {t.recommendation.startOver}
-        </button>
-        {!isContinuation && (
-          <button
-            onClick={onDismiss}
-            className="text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
-          >
-            {t.recommendation.dismiss}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

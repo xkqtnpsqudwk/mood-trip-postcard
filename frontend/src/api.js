@@ -37,7 +37,7 @@ export const savePreferences = (styleText) =>
 export const analyzeMood = ({ city, moodText, language }) =>
   api.post("/analyze", { city, mood_text: moodText, language }).then((res) => res.data);
 
-export const createPostcard = (city, placeId, review, language, tripId) =>
+export const createPostcard = (city, placeId, review, language, tripId, photoBase64List) =>
   api
     .post("/postcard", {
       city,
@@ -45,6 +45,7 @@ export const createPostcard = (city, placeId, review, language, tripId) =>
       review,
       language,
       trip_id: tripId || null,
+      photo_base64_list: photoBase64List || [],
     })
     .then((res) => res.data);
 

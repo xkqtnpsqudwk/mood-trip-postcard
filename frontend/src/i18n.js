@@ -1,13 +1,13 @@
 export const translations = {
   en: {
-    appTitle: "Mood Trip Postcard",
+    appTitle: "MoodTrip",
     appSubtitle: "AI-guided Emotional City Travel",
     tabCreate: "Create",
     tabArchive: "Archive",
     tabPersonalization: "My Page",
     cities: { Paris: "Paris", Seoul: "Seoul" },
     landing: {
-      title: "Mood Trip Postcard",
+      title: "MoodTrip",
       tagline: "An AI city travel curator tuned to your mood and taste",
       description:
         "Tell us how you feel and we'll recommend a corner of the city that matches it. Visit, leave a short review, and we'll turn it into a digital postcard - one trip, many stops, all kept in your archive.",
@@ -76,13 +76,19 @@ export const translations = {
     postcardCreator: {
       heading: "After you visit, how was it?",
       subheading:
-        "When you've been there, write a short note about the visit and we'll turn it into a postcard.",
+        "Write a short note and, if you have photos, we'll turn them into a postcard collage.",
       placeholder: "The light through the trees felt like a quiet apology...",
+      photoLabel: "Visit photos",
+      photoHint:
+        "Optional. Add up to 4 photos and AI will turn them into a postcard collage. Leave it empty for an AI-generated image.",
+      photoButton: "Choose photos",
+      photoLimit: "Only the first 4 photos will be used.",
+      photoError: "Couldn't read those photos. Please try different images.",
       back: "Back",
       submit: "Create my postcard",
       loading: "Writing your postcard...",
       loadingHint:
-        "The AI is composing your postcard and painting a matching photo — this can take a few minutes, thanks for your patience.",
+        "The AI is composing your postcard and image. If you added photos, it will turn them into a collage.",
     },
     postcard: {
       tapToFlip: "Tap to flip →",
@@ -98,6 +104,22 @@ export const translations = {
       close: "Close",
       stopsCount: (count) => (count === 1 ? "1 stop" : `${count} stops`),
     },
+    share: {
+      label: "Share card",
+      heading: "Save or copy this trip moment",
+      download: "Download card",
+      copy: "Copy caption",
+      native: "Share",
+      copied: "Caption copied.",
+      copyFailed: "Couldn't copy it. Please try again.",
+      downloading: "Creating your share card...",
+      downloaded: "Share card downloaded.",
+      downloadFailed: "Couldn't create the card. Please try again.",
+      shared: "Shared.",
+      footer: "Shared from MoodTrip",
+      caption: ({ title, city, place, message }) =>
+        `${title}\n${city} · ${place}\n${message}\n\nShared from MoodTrip`,
+    },
     postcardArrived: "Your postcard has arrived ✉",
     findNextStop: "Find my next stop →",
     endTrip: "Finish this trip",
@@ -112,14 +134,14 @@ export const translations = {
     tagLabels: {},
   },
   ko: {
-    appTitle: "감성 여행 엽서",
+    appTitle: "MoodTrip",
     appSubtitle: "AI가 안내하는 감성 도시 여행",
     tabCreate: "만들기",
     tabArchive: "보관함",
     tabPersonalization: "마이페이지",
     cities: { Paris: "파리", Seoul: "서울" },
     landing: {
-      title: "감성 여행 엽서",
+      title: "MoodTrip",
       tagline: "내 기분과 취향에 맞춘 AI 도시 여행 큐레이터",
       description:
         "지금 기분을 알려주시면 그 감정에 어울리는 도시의 한 켠을 추천해드려요. 다녀와서 짧은 후기를 남기면 디지털 엽서로 만들어드립니다 — 하나의 여행에 여러 정거장을 이어가며 보관함에 차곡차곡 기록할 수 있어요.",
@@ -186,13 +208,18 @@ export const translations = {
     },
     postcardCreator: {
       heading: "다녀온 뒤, 어떠셨나요?",
-      subheading: "방문 후 짧은 소감을 적어주시면, 엽서로 만들어드릴게요.",
+      subheading: "짧은 소감과 사진을 남기면, 방문 사진으로 엽서 콜라주를 만들어드릴게요.",
       placeholder: "나무 사이로 스며드는 빛이 조용한 위로처럼 느껴졌어요...",
+      photoLabel: "방문 사진",
+      photoHint: "선택 사항이에요. 최대 4장을 올리면 AI가 콜라주 엽서로 만들고, 없으면 새 이미지를 생성해요.",
+      photoButton: "사진 선택하기",
+      photoLimit: "처음 4장의 사진만 사용할게요.",
+      photoError: "사진을 읽지 못했어요. 다른 이미지로 다시 시도해주세요.",
       back: "뒤로",
       submit: "엽서 만들기",
       loading: "엽서를 쓰는 중...",
       loadingHint:
-        "AI가 엽서를 쓰고 어울리는 사진도 그리고 있어요 — 몇 분 정도 걸릴 수 있으니 잠시만 기다려주세요.",
+        "AI가 엽서 문구와 이미지를 만드는 중이에요. 사진을 올렸다면 콜라주 엽서로 다듬어요.",
     },
     postcard: {
       tapToFlip: "눌러서 뒤집기 →",
@@ -207,6 +234,22 @@ export const translations = {
       empty: "아직 엽서가 없어요 — 첫 감성 여행을 만들어보세요!",
       close: "닫기",
       stopsCount: (count) => `${count}개의 정거장`,
+    },
+    share: {
+      label: "공유 카드",
+      heading: "이 여행 순간을 저장하거나 공유하기",
+      download: "카드 저장",
+      copy: "문구 복사",
+      native: "공유하기",
+      copied: "공유 문구를 복사했어요.",
+      copyFailed: "복사하지 못했어요. 다시 시도해주세요.",
+      downloading: "공유 카드를 만드는 중이에요...",
+      downloaded: "공유 카드를 저장했어요.",
+      downloadFailed: "카드를 만들지 못했어요. 다시 시도해주세요.",
+      shared: "공유했어요.",
+      footer: "MoodTrip에서 공유",
+      caption: ({ title, city, place, message }) =>
+        `${title}\n${city} · ${place}\n${message}\n\nMoodTrip에서 공유`,
     },
     postcardArrived: "엽서가 도착했어요 ✉",
     findNextStop: "다음 정거장 찾기 →",

@@ -4,6 +4,7 @@ import MoodForm from "./components/MoodForm";
 import RecommendationView from "./components/RecommendationView";
 import PostcardCreator from "./components/PostcardCreator";
 import Postcard from "./components/Postcard";
+import SharePanel from "./components/SharePanel";
 import ArchiveTab from "./components/ArchiveTab";
 import AuthForm from "./components/AuthForm";
 import PersonalizationSettings from "./components/PersonalizationSettings";
@@ -124,11 +125,18 @@ function AppContent() {
     setStep(user ? "review" : "loginRequired");
   };
 
-  const handleReviewSubmit = async (review) => {
+  const handleReviewSubmit = async (review, photoBase64List = null) => {
     setError(null);
     setIsCreatingPostcard(true);
     try {
-      const postcard = await createPostcard(city, selectedPlace.id, review, lang, tripId);
+      const postcard = await createPostcard(
+        city,
+        selectedPlace.id,
+        review,
+        lang,
+        tripId,
+        photoBase64List
+      );
       if (lastPostcardId) {
         try {
           // Now that we know where the traveler actually went next, backfill
@@ -206,10 +214,10 @@ function AppContent() {
           </div>
         </div>
 
-        <h1 className="neon-text mt-2 font-[family-name:var(--font-display)] text-3xl text-stone-800 sm:text-4xl dark:text-zinc-100">
+        <h1 className="neon-text mt-5 font-[family-name:var(--font-display)] text-3xl text-stone-800 sm:mt-6 sm:text-4xl dark:text-zinc-100">
           {t.appSubtitle}
         </h1>
-        <nav className="mt-6 inline-flex rounded-full bg-white/70 p-1 shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
+        <nav className="mt-7 inline-flex rounded-full bg-white/70 p-1 shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -262,7 +270,7 @@ function AppContent() {
                 <AuthForm onSuccess={() => setStep("review")} />
                 <button
                   onClick={() => setStep("recommend")}
-                  className="mx-auto mt-4 block text-center text-sm text-stone-400 underline-offset-4 hover:text-stone-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+                  className="mx-auto mt-4 block text-center text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
                 >
                   {t.postcardCreator.back}
                 </button>
@@ -283,6 +291,7 @@ function AppContent() {
                   {t.postcardArrived}
                 </p>
                 <Postcard postcard={createdPostcard} defaultFlipped={false} />
+                <SharePanel postcard={createdPostcard} compact />
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   {hasRemainingStops && (
                     <button
