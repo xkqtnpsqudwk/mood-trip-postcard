@@ -141,7 +141,7 @@ def analyze_mood(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
-        max_tokens=600,
+        max_completion_tokens=600,
         response_format={"type": "json_object"},
         timeout=OPENAI_TIMEOUT_SECONDS,
     )
@@ -203,7 +203,7 @@ def extract_travel_style(style_text: str, language: str = "en") -> dict[str, lis
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.1,
-        max_tokens=400,
+        max_completion_tokens=400,
         response_format={"type": "json_object"},
         timeout=OPENAI_TIMEOUT_SECONDS,
     )
@@ -269,7 +269,7 @@ def generate_postcard(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
-        max_tokens=700,
+        max_completion_tokens=700,
         response_format={"type": "json_object"},
         timeout=OPENAI_TIMEOUT_SECONDS,
     )

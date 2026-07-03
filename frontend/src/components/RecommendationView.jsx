@@ -65,7 +65,7 @@ export default function RecommendationView({
   );
 
   return (
-    <div className="mx-auto w-full max-w-3xl lg:max-w-5xl">
+    <div className="mx-auto w-full max-w-3xl pb-[calc(6rem+env(safe-area-inset-bottom))] lg:max-w-5xl">
       <div className="rounded-3xl bg-gradient-to-br from-rose-200 via-rose-100 to-violet-200 p-6 text-center shadow-[0_25px_60px_-15px_rgba(216,180,254,0.5)] ring-1 ring-white/60 sm:p-8 dark:from-fuchsia-950/50 dark:via-transparent dark:to-cyan-950/40 dark:shadow-[0_0_40px_rgba(168,85,247,0.15)] dark:ring-fuchsia-500/20">
         <p className="text-xs font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-400">
           {t.recommendation.clueLabel}
@@ -161,7 +161,6 @@ export default function RecommendationView({
           {isContinuation ? t.recommendation.allVisited : t.recommendation.noMatches}
         </p>
       )}
-
     </div>
   );
 }
