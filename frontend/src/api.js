@@ -34,14 +34,24 @@ export const fetchPreferences = () => api.get("/preferences").then((res) => res.
 export const savePreferences = (styleText) =>
   api.put("/preferences", { style_text: styleText || "" }).then((res) => res.data);
 
-export const analyzeMood = ({ city, moodText, language }) =>
-  api.post("/analyze", { city, mood_text: moodText, language }).then((res) => res.data);
+export const analyzeMood = ({ city, moodText, language, latitude, longitude }) =>
+  api
+    .post("/analyze", {
+      city,
+      mood_text: moodText,
+      language,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
+    })
+    .then((res) => res.data);
 
-export const createPostcard = (city, placeId, review, language, tripId, photoBase64List) =>
+export const createPostcard = (city, place, review, language, tripId, photoBase64List) =>
   api
     .post("/postcard", {
       city,
-      place_id: placeId,
+      place_name: place.name_i18n?.[language] || place.name,
+      place_name_en: place.name_i18n?.en || place.name,
+      place_name_ko: place.name_i18n?.ko || place.name,
       review,
       language,
       trip_id: tripId || null,
@@ -49,11 +59,14 @@ export const createPostcard = (city, placeId, review, language, tripId, photoBas
     })
     .then((res) => res.data);
 
-export const updatePostcardNextPlace = (postcardId, nextPlaceId, language) =>
+export const updatePostcardNextPlace = (postcardId, place, language) =>
   api
     .patch(
       `/postcard/${postcardId}/next-place`,
-      { next_place_id: nextPlaceId },
+      {
+        next_place_name_en: place.name_i18n?.en || place.name,
+        next_place_name_ko: place.name_i18n?.ko || place.name,
+      },
       { params: { language } }
     )
     .then((res) => res.data);

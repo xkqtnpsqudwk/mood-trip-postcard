@@ -18,6 +18,28 @@ import {
   updatePostcardNextPlace,
 } from "./api";
 
+// Best-effort: lets recommendations flag genuinely far places for where the
+// traveler is right now. Resolves to null (never rejects) if the browser
+// has no geolocation support, the user declines, or it times out - the
+// backend already treats missing coordinates as "skip distance checks".
+function getUserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) =>
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 5 * 60 * 1000 }
+    );
+  });
+}
+
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
@@ -115,7 +137,8 @@ function AppContent() {
     setError(null);
     setIsAnalyzing(true);
     try {
-      const result = await analyzeMood({ ...formState, language: lang });
+      const location = await getUserLocation();
+      const result = await analyzeMood({ ...formState, language: lang, ...location });
       setCity(formState.city);
       setAnalyzeResult(result);
       setTripId(crypto.randomUUID());
@@ -139,7 +162,7 @@ function AppContent() {
     try {
       const postcard = await createPostcard(
         city,
-        selectedPlace.id,
+        selectedPlace,
         review,
         lang,
         tripId,
@@ -149,7 +172,7 @@ function AppContent() {
         try {
           // Now that we know where the traveler actually went next, backfill
           // the previous postcard's next-stop instead of showing a guess.
-          await updatePostcardNextPlace(lastPostcardId, selectedPlace.id, lang);
+          await updatePostcardNextPlace(lastPostcardId, selectedPlace, lang);
         } catch {
           // Best-effort: the previous postcard just won't show a next stop.
         }

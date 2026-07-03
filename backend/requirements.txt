@@ -1,6 +1,6 @@
-fastapi
-uvicorn[standard]
-pydantic
-python-dotenv
-openai
-httpx
+fastapi==0.138.2
+uvicorn[standard]==0.49.0
+pydantic==2.13.4
+python-dotenv==1.2.2
+openai==2.44.0
+httpx==0.28.1

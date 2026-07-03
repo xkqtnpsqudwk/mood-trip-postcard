@@ -31,14 +31,6 @@ def _get_client() -> OpenAI:
     return _client
 
 
-def _extract_json(text: str) -> dict:
-    """Pull the first JSON object out of a model response, tolerating code fences."""
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError(f"No JSON object found in model response: {text!r}")
-    return json.loads(match.group(0))
-
-
 def _localized_text(value, fallback: str = "") -> dict[str, str]:
     if isinstance(value, dict):
         en = str(value.get("en") or value.get("english") or fallback).strip()
@@ -98,144 +90,176 @@ def _response_image_base64(response) -> str | None:
     return getattr(first, "b64_json", None)
 
 
-def analyze_mood(
+def _strip_markdown_links(text: str) -> str:
+    """Drop inline source citations the web-searching model tends to leave in
+    free-text fields, e.g. '... ([site.com](https://site.com/x))'."""
+    return re.sub(r"\s*\(\[[^\]]*\]\([^)]*\)\)", "", text).strip()
+
+
+_PLACE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name_en": {"type": "string"},
+        "name_ko": {"type": "string"},
+        "type_en": {"type": "string"},
+        "type_ko": {"type": "string"},
+        "description_en": {"type": "string"},
+        "description_ko": {"type": "string"},
+        "duration": {"type": "string", "enum": list(tags.AVAILABLE_TIME.keys())},
+        "reason_en": {"type": "string"},
+        "reason_ko": {"type": "string"},
+        "avoid_warning": {
+            "type": ["string", "null"],
+            "enum": list(tags.AVOID.keys()) + [None],
+        },
+        "map_x": {"type": "number"},
+        "map_y": {"type": "number"},
+        "latitude": {"type": "number"},
+        "longitude": {"type": "number"},
+    },
+    "required": [
+        "name_en", "name_ko", "type_en", "type_ko", "description_en",
+        "description_ko", "duration", "reason_en", "reason_ko",
+        "avoid_warning", "map_x", "map_y", "latitude", "longitude",
+    ],
+    "additionalProperties": False,
+}
+
+_RECOMMEND_TRIP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "clue_en": {"type": "string"},
+        "clue_ko": {"type": "string"},
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"en": {"type": "string"}, "ko": {"type": "string"}},
+                "required": ["en", "ko"],
+                "additionalProperties": False,
+            },
+        },
+        "avoid": {"type": "array", "items": {"type": "string", "enum": list(tags.AVOID.keys())}},
+        "places": {"type": "array", "items": _PLACE_SCHEMA},
+    },
+    "required": ["clue_en", "clue_ko", "tags", "avoid", "places"],
+    "additionalProperties": False,
+}
+
+
+def recommend_trip(
     city: str,
     mood_text: str,
     language: str = "en",
     *,
     style_text: str | None = None,
 ) -> dict:
-    """Analyze only the traveler's free-text mood sentence for display.
+    """Ask the model to recommend real places, grounded with web search.
 
-    Place ranking is handled separately from saved travel-style preferences.
-    This function creates the placebo layer: emotional display tags, avoid
-    labels for user-facing context, and a poetic clue sentence.
+    Replaces the old fixed-catalog lookup: instead of ranking a seeded
+    `places` table, the model itself proposes 4-6 places in `city` that fit
+    the traveler's current mood and saved style. It's required to use the
+    web_search tool to confirm each place actually exists and is currently
+    operating, rather than recommending from parametric memory alone.
 
-    Returns: {"tags": [{"en": str, "ko": str}, ...], "avoid": [str, ...],
-              "clue": {"en": str, "ko": str}}
+    Returns: {"clue": {"en", "ko"}, "tags": [{"en","ko"}, ...],
+              "avoid": [str, ...], "places": [{"name": {...}, "type": {...},
+              "description": {...}, "duration": str, "reason": {...},
+              "avoid_warning": str | None, "map_position": {"x", "y"},
+              "coordinates": {"lat", "lng"}}, ...]}
     """
     client = _get_client()
+    duration_vocab = ", ".join(tags.AVAILABLE_TIME.keys())
     avoid_vocab = ", ".join(tags.AVOID.keys())
-    preference_vocab = ", ".join(tags.PREFERENCES.keys())
-    system_prompt = (
-        "You are an emotionally perceptive travel companion. Given a city and "
-        "a traveler's current mood, do three things. The traveler is assumed "
-        "to be solo by default, so do not ask for or infer companionship "
-        "style. First, extract 3-6 short emotional/vibe keywords that capture "
-        "how they feel right now. When a keyword naturally matches one of "
-        f"these known display tags, prefer that exact word: {preference_vocab}. Second, extract "
-        "0-4 'avoid' keywords, but ONLY from this fixed list, and ONLY when "
-        f"clearly implied by the mood or saved style: {avoid_vocab}. Do not "
-        "invent avoid keywords outside that list; return an empty avoid list "
-        "if nothing is clearly implied. Third, write one poetic metaphorical "
-        "clue sentence that hints at the kind of place they should visit. "
-        "Return tags with both English and Korean for display. The English "
-        "tag must be lowercase and short because it is used for matching; "
-        "the Korean tag must be the same meaning translated naturally for "
-        "display, with no hashtag. English text must use English only. "
-        "Korean text must use Korean only, except place names when needed. "
-        "Respond with ONLY a JSON object in this exact shape: "
-        '{"tags": [{"en": "excited", "ko": "신나는"}], '
-        '"avoid": ["crowded"], '
-        '"clue": {"en": "a poetic sentence", "ko": "같은 의미의 한국어 문장"}}'
-    )
-
-    context_lines = [f"City: {city}", f"Current mood: {mood_text}"]
-    context_lines.append(f"Preferred UI language for tone reference: {_language_name(language)}")
-    user_prompt = "\n".join(context_lines)
-
-    completion = client.chat.completions.create(
-        model=OPENAI_TEXT_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.7,
-        max_completion_tokens=600,
-        response_format={"type": "json_object"},
-        timeout=OPENAI_TIMEOUT_SECONDS,
-    )
-    content = completion.choices[0].message.content
-    data = _extract_json(content)
-    valid_avoid = set(tags.AVOID.keys())
-    avoid_out = [
-        str(a).strip().lower() for a in data.get("avoid", []) if str(a).strip().lower() in valid_avoid
-    ]
-    return {
-        "tags": _localized_tags(data.get("tags", [])),
-        "avoid": avoid_out,
-        "clue": _localized_text(data.get("clue", "")),
-    }
-
-
-def extract_travel_style(style_text: str, language: str = "en") -> dict[str, list[str]]:
-    """Extract fixed-vocabulary travel preferences from the saved style profile.
-
-    Returns: {"preferences": [code, ...], "avoid": [code, ...]}
-    """
-    if not style_text.strip():
-        return {"preferences": [], "avoid": []}
-
-    client = _get_client()
-    preference_vocab = {
-        code: {"en": label["en"], "ko": label["ko"]}
-        for code, label in tags.PREFERENCES.items()
-    }
-    avoid_vocab = {
-        code: {"en": label["en"], "ko": label["ko"]}
-        for code, label in tags.AVOID.items()
-    }
-    system_prompt = (
-        "You extract travel style from a user's saved free-text profile. "
-        "Return only fixed vocabulary codes from the provided lists. "
-        "Use preferences for things the user likes or wants more of. "
-        "Use avoid for things the user explicitly dislikes, wants to avoid, "
-        "or finds uncomfortable. Do not infer companionship style; the product "
-        "targets solo travelers by default. Be conservative: if a preference "
-        "is vague or not clearly expressed, leave it out. Map words such as "
-        "exciting, upbeat, energetic, fun, lively, 신나는, 재미있는, and 활기찬 "
-        "to the fixed preference code 'lively'. Respond with ONLY a JSON object "
-        "in this exact shape: "
-        '{"preferences": ["walking", "cafe"], "avoid": ["crowded"]}'
+    instructions = (
+        "You are an emotionally perceptive solo-travel companion. Given a city, "
+        "the traveler's current mood, and (optionally) their saved travel style, "
+        "recommend 4 to 6 real, currently-operating places in that exact city. "
+        "The traveler is solo by default. You MUST use the web_search tool to "
+        "verify each place actually exists and is currently operating before "
+        "including it - never rely on memory alone, and prefer well-known, "
+        "easily verifiable places over obscure ones. "
+        "For each place, give a bilingual name/type/description/reason "
+        "(natural English and Korean), a duration code from this fixed list: "
+        f"{duration_vocab}, an optional avoid_warning code from this fixed "
+        f"list (or null if none applies): {avoid_vocab}, an approximate "
+        "map_x/map_y (0-100) representing where the place roughly sits within "
+        "the city, with 0,0 as northwest and 100,100 as southeast, and the "
+        "place's real latitude/longitude (use web_search to find its actual "
+        "current coordinates - do not estimate from memory). Also write "
+        "one poetic metaphorical clue sentence (English and Korean) that hints "
+        "at today's mood, and 3-6 short emotional vibe tags (English lowercase "
+        "+ natural Korean, no hashtag). English text must use English only; "
+        "Korean text must use Korean only, except place names when needed."
     )
     user_prompt = json.dumps(
         {
-            "style_text": style_text,
-            "language": _language_name(language),
-            "allowed_preferences": preference_vocab,
-            "allowed_avoid": avoid_vocab,
+            "city": city,
+            "mood_text": mood_text,
+            "style_text": style_text or "",
+            "preferred_ui_language_for_tone": _language_name(language),
         },
         ensure_ascii=False,
     )
 
-    completion = client.chat.completions.create(
+    response = client.responses.create(
         model=OPENAI_TEXT_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.1,
-        max_completion_tokens=400,
-        response_format={"type": "json_object"},
+        instructions=instructions,
+        input=user_prompt,
+        tools=[{"type": "web_search"}],
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "trip_recommendation",
+                "schema": _RECOMMEND_TRIP_SCHEMA,
+                "strict": True,
+            }
+        },
         timeout=OPENAI_TIMEOUT_SECONDS,
     )
-    content = completion.choices[0].message.content
-    data = _extract_json(content)
-    valid_preferences = set(tags.PREFERENCES.keys())
+    data = json.loads(response.output_text)
+
     valid_avoid = set(tags.AVOID.keys())
-    preferences = [
-        str(code).strip().lower()
-        for code in data.get("preferences", [])
-        if str(code).strip().lower() in valid_preferences
-    ]
-    avoid = [
-        str(code).strip().lower()
-        for code in data.get("avoid", [])
-        if str(code).strip().lower() in valid_avoid
-    ]
+    valid_duration = set(tags.AVAILABLE_TIME.keys())
+    places = []
+    for place in data.get("places", []):
+        avoid_warning = place.get("avoid_warning")
+        if avoid_warning not in valid_avoid:
+            avoid_warning = None
+        duration = place.get("duration")
+        if duration not in valid_duration:
+            duration = next(iter(valid_duration))
+        places.append(
+            {
+                "name": {"en": place["name_en"], "ko": place["name_ko"]},
+                "type": {"en": place["type_en"], "ko": place["type_ko"]},
+                "description": {
+                    "en": _strip_markdown_links(place["description_en"]),
+                    "ko": _strip_markdown_links(place["description_ko"]),
+                },
+                "duration": duration,
+                "reason": {
+                    "en": _strip_markdown_links(place["reason_en"]),
+                    "ko": _strip_markdown_links(place["reason_ko"]),
+                },
+                "avoid_warning": avoid_warning,
+                "map_position": {
+                    "x": max(0.0, min(100.0, float(place["map_x"]))),
+                    "y": max(0.0, min(100.0, float(place["map_y"]))),
+                },
+                "coordinates": {
+                    "lat": float(place["latitude"]),
+                    "lng": float(place["longitude"]),
+                },
+            }
+        )
+
+    avoid_out = [a for a in data.get("avoid", []) if a in valid_avoid]
     return {
-        "preferences": list(dict.fromkeys(preferences)),
-        "avoid": list(dict.fromkeys(avoid)),
+        "clue": {"en": data["clue_en"], "ko": data["clue_ko"]},
+        "tags": _localized_tags(data.get("tags", [])),
+        "avoid": avoid_out,
+        "places": places,
     }
 
 
