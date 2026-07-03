@@ -444,20 +444,6 @@ def create_postcard(
     place_name_en = _localized(place, "name", "en")
     place_name_ko = _localized(place, "name", "ko")
 
-    try:
-        generated = ai_service.generate_postcard(
-            city=payload.city,
-            place_name=place_name,
-            review=payload.review,
-            language=payload.language,
-            place_name_en=place_name_en,
-            place_name_ko=place_name_ko,
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"Postcard generation failed: {exc}"
-        ) from exc
-
     source_images = payload.photo_base64_list or (
         [payload.image_base64] if payload.image_base64 else []
     )
@@ -465,7 +451,7 @@ def create_postcard(
         image_base64 = ai_service.generate_postcard_image(
             city=payload.city,
             place_name=place["name"],
-            message=generated["message"]["en"],
+            message=payload.review,
             source_images_base64=source_images,
         )
     except Exception as exc:
@@ -481,16 +467,16 @@ def create_postcard(
     row = database.insert_postcard(
         city=payload.city,
         place_name=place_name,
-        title=generated["title"]["en"],
-        message=generated["message"]["en"],
+        title="",
+        message="",
         review=payload.review,
         trip_id=trip_id,
         image_base64=image_base64,
         place_id=place["id"],
-        title_en=generated["title"]["en"],
-        message_en=generated["message"]["en"],
-        title_ko=generated["title"]["ko"],
-        message_ko=generated["message"]["ko"],
+        title_en="",
+        message_en="",
+        title_ko="",
+        message_ko="",
         user_id=user["id"],
     )
     places_by_id = {p["id"]: p for p in places}

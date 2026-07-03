@@ -61,7 +61,7 @@ function drawRoundedRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-async function downloadShareImage({ postcard, title, message, review, placeName, cityName, t }) {
+async function downloadShareImage({ postcard, placeName, cityName, t }) {
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1350;
@@ -82,13 +82,13 @@ async function downloadShareImage({ postcard, title, message, review, placeName,
   context.fillText(`${cityName} · ${placeName}`, 80, 140);
 
   const imageTop = 190;
-  const imageHeight = postcard.image_base64 ? 560 : 330;
+  const imageHeight = 760;
   drawRoundedRect(context, 80, imageTop, 920, imageHeight, 36);
   context.save();
   context.clip();
   if (postcard.image_base64) {
     try {
-      const image = await loadImage(`data:image/jpeg;base64,${postcard.image_base64}`);
+      const image = await loadImage(`data:image/png;base64,${postcard.image_base64}`);
       const scale = Math.max(920 / image.width, imageHeight / image.height);
       const width = image.width * scale;
       const height = image.height * scale;
@@ -106,18 +106,31 @@ async function downloadShareImage({ postcard, title, message, review, placeName,
   }
   context.restore();
 
-  let y = imageTop + imageHeight + 90;
+  const cardTop = imageTop + imageHeight + 70;
+  drawRoundedRect(context, 80, cardTop, 920, 210, 28);
+  context.fillStyle = "#fffaf0";
+  context.fill();
+  context.strokeStyle = "#d6d3d1";
+  context.lineWidth = 2;
+  context.stroke();
+
   context.fillStyle = "#111827";
-  context.font = "700 58px Arial, sans-serif";
-  y = wrapText(context, title, 80, y, 920, 72, 2) + 26;
-
-  context.fillStyle = "#4b5563";
-  context.font = "400 34px Arial, sans-serif";
-  y = wrapText(context, message, 80, y, 920, 48, 4) + 42;
-
-  context.fillStyle = "#6b7280";
-  context.font = "italic 28px Arial, sans-serif";
-  wrapText(context, review, 80, y, 920, 42, 3);
+  context.font = "700 30px Arial, sans-serif";
+  context.fillText("POST CARD", 120, cardTop + 58);
+  context.strokeStyle = "#a8a29e";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(540, cardTop + 34);
+  context.lineTo(540, cardTop + 176);
+  context.stroke();
+  context.strokeRect(850, cardTop + 34, 90, 70);
+  for (let index = 0; index < 4; index += 1) {
+    const y = cardTop + 120 + index * 24;
+    context.beginPath();
+    context.moveTo(600, y);
+    context.lineTo(940, y);
+    context.stroke();
+  }
 
   context.fillStyle = "#8b5cf6";
   context.font = "700 28px Arial, sans-serif";
@@ -139,7 +152,7 @@ export default function SharePanel({ postcard, compact = false }) {
     const message = localized(postcard.message_i18n, lang) || postcard.message;
     const cityName = t.cities[postcard.city] ?? postcard.city;
     const review = postcard.review || "";
-    const caption = t.share.caption({ title, city: cityName, place: placeName, message });
+    const caption = t.share.caption({ title, city: cityName, place: placeName, message, review });
     return { placeName, title, message, cityName, review, caption };
   }, [lang, postcard, t]);
 
@@ -165,7 +178,10 @@ export default function SharePanel({ postcard, compact = false }) {
   const handleNativeShare = async () => {
     if (!navigator.share) return;
     try {
-      await navigator.share({ title: shareData.title, text: shareData.caption });
+      await navigator.share({
+        title: `${shareData.cityName} / ${shareData.placeName}`,
+        text: shareData.caption,
+      });
       setStatus(t.share.shared);
     } catch {
       setStatus("");
@@ -196,11 +212,11 @@ export default function SharePanel({ postcard, compact = false }) {
         <p className="text-[11px] font-medium text-violet-500 dark:text-cyan-300">
           {shareData.cityName} · {shareData.placeName}
         </p>
-        <p className="mt-2 line-clamp-2 break-keep font-[family-name:var(--font-display)] text-lg leading-snug text-stone-800 dark:text-zinc-100">
-          {shareData.title}
+        <p className="mt-2 break-keep font-[family-name:var(--font-display)] text-lg leading-snug text-stone-800 dark:text-zinc-100">
+          POST CARD
         </p>
-        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
-          {shareData.message}
+        <p className="mt-2 text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
+          {t.share.blankPostcardHint}
         </p>
       </div>
 

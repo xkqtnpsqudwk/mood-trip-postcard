@@ -46,6 +46,10 @@ const MAPS = {
       "Maison de Victor Hugo": [63, 54],
       "Merci Used Book Cafe": [60, 48],
       "Bibliotheque Francois-Mitterrand": [66, 70],
+      "Rue Oberkampf": [66, 45],
+      "Rue Mouffetard": [57, 70],
+      "Rue de Lappe": [67, 58],
+      "Ground Control": [70, 62],
     },
   },
   Seoul: {
@@ -86,6 +90,10 @@ const MAPS = {
       "Onion Anguk": [51, 34],
       "Anthracite Hapjeong": [31, 50],
       "Seoul Metropolitan Library": [46, 41],
+      "Euljiro Nogari Alley": [53, 41],
+      "Itaewon World Food Street": [51, 53],
+      "Apgujeong Rodeo Street": [62, 58],
+      "Konkuk University Taste Street": [67, 49],
     },
   },
 };

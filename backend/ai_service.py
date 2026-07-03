@@ -68,8 +68,19 @@ def _image_file_from_base64(value: str, index: int):
         mime_type = match.group(1)
         base64_data = match.group(2)
     else:
-        mime_type = "image/jpeg"
+        mime_type = ""
         base64_data = value
+
+    image_bytes = base64.b64decode(base64_data)
+    if not mime_type:
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            mime_type = "image/png"
+        elif image_bytes.startswith(b"\xff\xd8\xff"):
+            mime_type = "image/jpeg"
+        elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+            mime_type = "image/webp"
+        else:
+            mime_type = "image/jpeg"
 
     extension = {
         "image/jpeg": "jpg",
@@ -77,7 +88,6 @@ def _image_file_from_base64(value: str, index: int):
         "image/png": "png",
         "image/webp": "webp",
     }.get(mime_type, "jpg")
-    image_bytes = base64.b64decode(base64_data)
     return (f"visit-photo-{index}.{extension}", image_bytes, mime_type)
 
 
@@ -182,8 +192,10 @@ def extract_travel_style(style_text: str, language: str = "en") -> dict[str, lis
         "Use avoid for things the user explicitly dislikes, wants to avoid, "
         "or finds uncomfortable. Do not infer companionship style; the product "
         "targets solo travelers by default. Be conservative: if a preference "
-        "is vague or not clearly expressed, leave it out. Respond with ONLY "
-        "a JSON object in this exact shape: "
+        "is vague or not clearly expressed, leave it out. Map words such as "
+        "exciting, upbeat, energetic, fun, lively, 신나는, 재미있는, and 활기찬 "
+        "to the fixed preference code 'lively'. Respond with ONLY a JSON object "
+        "in this exact shape: "
         '{"preferences": ["walking", "cafe"], "avoid": ["crowded"]}'
     )
     user_prompt = json.dumps(
@@ -227,60 +239,6 @@ def extract_travel_style(style_text: str, language: str = "en") -> dict[str, lis
     }
 
 
-def generate_postcard(
-    city: str,
-    place_name: str,
-    review: str,
-    language: str = "en",
-    place_name_en: str | None = None,
-    place_name_ko: str | None = None,
-) -> dict:
-    """Generate a bilingual poetic postcard title and message.
-
-    Returns: {"title": {"en": str, "ko": str}, "message": {"en": str, "ko": str}}
-    """
-    client = _get_client()
-    place_name_en = place_name_en or place_name
-    place_name_ko = place_name_ko or place_name
-    system_prompt = (
-        "You are a poet who writes short, heartfelt digital travel postcards. "
-        "Given the city, the place visited, and the traveler's review, write a "
-        "short poetic postcard title (under 8 words) and an emotional postcard "
-        "message (2-4 sentences). Return both English and Korean. English text "
-        "must use English only. Korean text must use Korean only, except place "
-        "names. Keep each place name exactly as provided for that language. "
-        "Respond with ONLY a JSON object in this exact shape: "
-        '{"title": {"en": "a poetic title", "ko": "같은 의미의 한국어 제목"}, '
-        '"message": {"en": "a short emotional message", '
-        '"ko": "같은 의미의 한국어 메시지"}}'
-    )
-    user_prompt = (
-        f"City: {city}\n"
-        f"Place visited, English name: {place_name_en}\n"
-        f"Place visited, Korean name: {place_name_ko}\n"
-        f"Preferred UI language for tone reference: {_language_name(language)}\n"
-        f"Traveler's review: {review}"
-    )
-
-    completion = client.chat.completions.create(
-        model=OPENAI_TEXT_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.7,
-        max_completion_tokens=700,
-        response_format={"type": "json_object"},
-        timeout=OPENAI_TIMEOUT_SECONDS,
-    )
-    content = completion.choices[0].message.content
-    data = _extract_json(content)
-    return {
-        "title": _localized_text(data.get("title", "")),
-        "message": _localized_text(data.get("message", "")),
-    }
-
-
 def generate_postcard_image(
     city: str,
     place_name: str,
@@ -290,8 +248,7 @@ def generate_postcard_image(
     """Generate a postcard image and return base64-encoded image data.
 
     When source images are provided, OpenAI edits them into a travel postcard
-    collage. Otherwise, it generates a new postcard image from the AI-written
-    English postcard message.
+    collage. Otherwise, it generates a new postcard image from the user's note.
 
     Raises on image-generation failure so the caller can ask the user to retry
     instead of silently saving an imageless postcard.
@@ -322,7 +279,7 @@ def generate_postcard_image(
     else:
         prompt = (
             f"A beautiful horizontal travel postcard photograph of {place_name} "
-            f"in {city}, evoking this feeling: {message}. Warm natural light, "
+            f"in {city}, inspired by this traveler's note: {message}. Warm natural light, "
             "cinematic but realistic travel photography, postcard aesthetic, "
             "no text, no words, no writing anywhere in the image."
         )
@@ -345,9 +302,9 @@ def generate_trip_postcard(
     postcards: list[dict],
     language: str = "en",
 ) -> dict:
-    """Create one final postcard from every postcard in a finished trip.
+    """Create one final image-only postcard from every postcard in a finished trip.
 
-    Returns: {"title": {"en": str, "ko": str}, "message": {"en": str, "ko": str},
+    Returns: {"title": {"en": "", "ko": ""}, "message": {"en": "", "ko": ""},
               "image_base64": str}
     """
     if not postcards:
@@ -363,43 +320,6 @@ def generate_trip_postcard(
         }
         for item in postcards
     ]
-    text_prompt = json.dumps(
-        {
-            "city": city,
-            "language": _language_name(language),
-            "trip_postcards": trip_notes,
-        },
-        ensure_ascii=False,
-    )
-    completion = client.chat.completions.create(
-        model=OPENAI_TEXT_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a travel editor creating one final postcard from "
-                    "a completed solo city trip. Read every stop's place, "
-                    "postcard message, and review. Write one cohesive final "
-                    "postcard title under 8 words and a 3-5 sentence message "
-                    "that feels like the whole journey, not a list. Return both "
-                    "English and Korean. English text must use English only. "
-                    "Korean text must use Korean only, except place names when "
-                    "needed. Respond with ONLY JSON in this shape: "
-                    '{"title": {"en": "title", "ko": "제목"}, '
-                    '"message": {"en": "message", "ko": "메시지"}}'
-                ),
-            },
-            {"role": "user", "content": text_prompt},
-        ],
-        temperature=0.75,
-        max_tokens=900,
-        response_format={"type": "json_object"},
-        timeout=OPENAI_TIMEOUT_SECONDS,
-    )
-    data = _extract_json(completion.choices[0].message.content)
-    title = _localized_text(data.get("title", "MoodTrip"))
-    message = _localized_text(data.get("message", ""))
-
     image_sources = [
         item.get("image_base64")
         for item in postcards
@@ -434,7 +354,7 @@ def generate_trip_postcard(
     else:
         prompt = (
             f"A beautiful horizontal final travel postcard photograph for a "
-            f"completed solo trip in {city}. Mood: {message['en']}. Create a "
+            f"completed solo trip in {city}. Create a "
             "cohesive cinematic travel memory, warm natural light, realistic "
             "postcard aesthetic, no text, no words, no writing anywhere. "
             f"Trip notes:\n{image_context}"
@@ -451,7 +371,7 @@ def generate_trip_postcard(
     if not image_base64:
         raise RuntimeError("OpenAI trip image response did not include image data")
     return {
-        "title": title,
-        "message": message,
+        "title": {"en": "", "ko": ""},
+        "message": {"en": "", "ko": ""},
         "image_base64": image_base64,
     }

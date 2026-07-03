@@ -22,8 +22,6 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
   const { t, lang } = useLanguage();
   const [isFlipped, setIsFlipped] = useState(defaultFlipped);
   const placeName = localized(postcard.place_name_i18n, lang) || postcard.place_name;
-  const title = localized(postcard.title_i18n, lang) || postcard.title;
-  const message = localized(postcard.message_i18n, lang) || postcard.message;
   const nextPlaceName =
     localized(postcard.next_place_name_i18n, lang) || postcard.next_place_name;
 
@@ -41,58 +39,67 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
       onClick={handleClick}
     >
       <div className="postcard-flip-inner relative h-full w-full">
-        <div className="postcard-face absolute inset-0 flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 via-rose-50 to-rose-200 p-6 shadow-[0_20px_45px_-12px_rgba(251,113,133,0.4)] ring-1 ring-white/60 dark:from-fuchsia-950/60 dark:via-transparent dark:to-cyan-950/40 dark:ring-fuchsia-500/20 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)]">
-          <p className="shrink-0 truncate text-[10px] font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-400">
-            {t.cities[postcard.city] ?? postcard.city} &middot; {placeName}
-          </p>
-          <div className="my-4 min-h-0 flex-1 overflow-hidden">
-            <h3 className="line-clamp-2 break-keep font-[family-name:var(--font-display)] text-lg leading-snug text-stone-800 sm:text-xl dark:text-cyan-100">
-              {title}
-            </h3>
-            <p className="mt-2 line-clamp-3 text-sm italic leading-relaxed text-stone-600 dark:text-zinc-300">
-              {message}
-            </p>
-            {nextPlaceName && (
-              <p className="mt-2 line-clamp-1 text-[11px] text-violet-500 dark:text-cyan-400">
-                {t.postcard.nextPlaceLabel}: {nextPlaceName}
-              </p>
-            )}
-          </div>
-          <p className="shrink-0 text-[10px] text-stone-400 dark:text-zinc-500">
-            {onOpen ? t.postcard.tapToOpen : t.postcard.tapToFlip}
-          </p>
-        </div>
-
-        <div className="postcard-face postcard-face-back absolute inset-0 overflow-hidden rounded-2xl shadow-[0_20px_45px_-12px_rgba(167,139,250,0.4)] ring-1 ring-white/60 dark:ring-cyan-500/20 dark:shadow-[0_0_30px_rgba(34,211,238,0.2)]">
+        <div className="postcard-face absolute inset-0 overflow-hidden rounded-2xl bg-stone-100 shadow-[0_20px_45px_-12px_rgba(167,139,250,0.4)] ring-1 ring-white/60 dark:bg-zinc-900 dark:ring-cyan-500/20 dark:shadow-[0_0_30px_rgba(34,211,238,0.2)]">
           {postcard.image_base64 ? (
             <>
               <img
-                src={`data:image/jpeg;base64,${postcard.image_base64}`}
-                alt={title}
+                src={`data:image/png;base64,${postcard.image_base64}`}
+                alt={`${placeName} postcard`}
                 className="h-full w-full object-cover"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
-                <p className="line-clamp-2 text-xs text-white/90">{postcard.review}</p>
-                <p className="mt-1 text-right text-[10px] text-white/70">
-                  {formatDate(postcard.created_at, t.postcard.locale)}
-                </p>
-              </div>
             </>
           ) : (
-            <div className="flex h-full w-full flex-col justify-between bg-white p-6 dark:bg-zinc-900">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-400 dark:text-cyan-400">
-                  {t.postcard.myReview}
-                </p>
-                <p className="mt-2 text-sm text-stone-600 dark:text-zinc-300">
-                  {postcard.review}
-                </p>
+            <div className="h-full w-full bg-gradient-to-br from-rose-100 via-white to-cyan-100 dark:from-zinc-900 dark:via-zinc-950 dark:to-cyan-950" />
+          )}
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/60 to-transparent px-4 py-3">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-white/85">
+              {t.cities[postcard.city] ?? postcard.city} &middot; {placeName}
+            </p>
+            <p className="shrink-0 pl-3 text-[10px] text-white/70">
+              {onOpen ? t.postcard.tapToOpen : t.postcard.tapToFlip}
+            </p>
+          </div>
+        </div>
+
+        <div className="postcard-face postcard-face-back absolute inset-0 overflow-hidden rounded-2xl bg-[#fbf6ed] p-5 text-stone-700 shadow-[0_20px_45px_-12px_rgba(120,113,108,0.35)] ring-1 ring-stone-200 dark:bg-zinc-100 dark:text-stone-800 dark:ring-zinc-700">
+          <div className="flex h-full gap-4">
+            <div className="flex flex-1 flex-col">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-stone-400">
+                Post Card
+              </p>
+              <p className="mt-1 truncate text-[10px] text-stone-400">
+                {t.cities[postcard.city] ?? postcard.city} / {placeName}
+              </p>
+              <div className="mt-5 space-y-4">
+                <div className="h-px bg-stone-300" />
+                <div className="h-px bg-stone-300" />
+                <div className="h-px bg-stone-300" />
+                <div className="h-px bg-stone-300" />
               </div>
-              <p className="text-right text-[10px] text-stone-400 dark:text-zinc-500">
+              {nextPlaceName && (
+                <p className="mt-auto truncate text-[10px] text-stone-400">
+                  {t.postcard.nextPlaceLabel}: {nextPlaceName}
+                </p>
+              )}
+              <p className="mt-auto text-[10px] text-stone-400">
                 {formatDate(postcard.created_at, t.postcard.locale)}
               </p>
             </div>
-          )}
+
+            <div className="w-px bg-stone-300" />
+
+            <div className="flex w-[42%] flex-col">
+              <div className="ml-auto flex h-16 w-14 items-center justify-center border border-dashed border-stone-400 text-[9px] uppercase tracking-widest text-stone-400">
+                Stamp
+              </div>
+              <div className="mt-auto space-y-4">
+                <div className="h-px bg-stone-400" />
+                <div className="h-px bg-stone-400" />
+                <div className="h-px bg-stone-400" />
+                <div className="h-px bg-stone-400" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

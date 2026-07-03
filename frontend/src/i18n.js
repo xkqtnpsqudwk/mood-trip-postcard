@@ -1,4 +1,4 @@
-export const translations = {
+﻿export const translations = {
   en: {
     appTitle: "MoodTrip",
     appSubtitle: "AI-guided Emotional City Travel",
@@ -76,8 +76,9 @@ export const translations = {
     postcardCreator: {
       heading: "After you visit, how was it?",
       subheading:
-        "Write a short note and, if you have photos, we'll turn them into a postcard collage.",
-      placeholder: "The light through the trees felt like a quiet apology...",
+        "Write what you want the image to remember. If you have photos, we'll use them for the postcard front.",
+      placeholder:
+        "The light, the street noise, the color of the place, or the feeling you want the image to carry...",
       photoLabel: "Visit photos",
       photoHint:
         "Optional. Add up to 4 photos and AI will turn them into a postcard collage. Leave it empty for an AI-generated image.",
@@ -86,9 +87,9 @@ export const translations = {
       photoError: "Couldn't read those photos. Please try different images.",
       back: "Back",
       submit: "Create my postcard",
-      loading: "Writing your postcard...",
+      loading: "Making your postcard...",
       loadingHint:
-        "The AI is composing your postcard and image. If you added photos, it will turn them into a collage.",
+        "The AI is creating the postcard image. The back will stay as a blank postcard form.",
     },
     postcard: {
       tapToFlip: "Tap to flip →",
@@ -117,8 +118,8 @@ export const translations = {
       downloadFailed: "Couldn't create the card. Please try again.",
       shared: "Shared.",
       footer: "Shared from MoodTrip",
-      caption: ({ title, city, place, message }) =>
-        `${title}\n${city} · ${place}\n${message}\n\nShared from MoodTrip`,
+      blankPostcardHint: "A blank postcard form with this trip image on the front.",
+      caption: ({ city, place }) => `${city} / ${place}\n\nShared from MoodTrip`,
     },
     postcardArrived: "Your postcard has arrived ✉",
     finalPostcard: {
@@ -216,8 +217,8 @@ export const translations = {
     },
     postcardCreator: {
       heading: "다녀온 뒤, 어떠셨나요?",
-      subheading: "짧은 소감과 사진을 남기면, 방문 사진으로 엽서 콜라주를 만들어드릴게요.",
-      placeholder: "나무 사이로 스며드는 빛이 조용한 위로처럼 느껴졌어요...",
+      subheading: "이미지에 담기길 원하는 장면이나 느낌을 적어주세요. 사진이 있으면 엽서 앞면에 활용할게요.",
+      placeholder: "빛, 거리의 소리, 장소의 색감, 이미지에 담고 싶은 분위기를 적어주세요...",
       photoLabel: "방문 사진",
       photoHint: "선택 사항이에요. 최대 4장을 올리면 AI가 콜라주 엽서로 만들고, 없으면 새 이미지를 생성해요.",
       photoButton: "사진 선택하기",
@@ -225,9 +226,9 @@ export const translations = {
       photoError: "사진을 읽지 못했어요. 다른 이미지로 다시 시도해주세요.",
       back: "뒤로",
       submit: "엽서 만들기",
-      loading: "엽서를 쓰는 중...",
+      loading: "엽서를 만드는 중...",
       loadingHint:
-        "AI가 엽서 문구와 이미지를 만드는 중이에요. 사진을 올렸다면 콜라주 엽서로 다듬어요.",
+        "AI가 엽서 앞면 이미지를 만드는 중이에요. 뒷면은 빈 엽서 양식으로 남겨둘게요.",
     },
     postcard: {
       tapToFlip: "눌러서 뒤집기 →",
@@ -237,7 +238,7 @@ export const translations = {
       locale: "ko-KR",
     },
     archive: {
-      loading: "엽서를 불러오는 중...",
+      loading: "엽서를 만드는 중...",
       error: "보관함을 불러오지 못했어요. 다시 시도해주세요.",
       empty: "아직 엽서가 없어요 — 첫 감성 여행을 만들어보세요!",
       close: "닫기",
@@ -256,14 +257,14 @@ export const translations = {
       downloadFailed: "카드를 만들지 못했어요. 다시 시도해주세요.",
       shared: "공유했어요.",
       footer: "MoodTrip에서 공유",
-      caption: ({ title, city, place, message }) =>
-        `${title}\n${city} · ${place}\n${message}\n\nMoodTrip에서 공유`,
+      blankPostcardHint: "앞면에는 여정 이미지, 뒷면에는 빈 엽서 양식이 있는 카드예요.",
+      caption: ({ city, place }) => `${city} / ${place}\n\nMoodTrip에서 공유`,
     },
     postcardArrived: "엽서가 도착했어요 ✉",
     finalPostcard: {
       heading: "최종 여정 엽서가 완성됐어요",
-      subheading: "이번 여정의 모든 엽서와 문구를 모아 하나의 기억으로 엮었어요.",
-      loading: "최종 엽서를 만드는 중...",
+      subheading: "이미지에 담기길 원하는 장면이나 느낌을 적어주세요. 사진이 있으면 엽서 앞면에 활용할게요.",
+      loading: "엽서를 만드는 중...",
     },
     findNextStop: "다음 정거장 찾기 →",
     endTrip: "여행 마무리하기",
@@ -316,3 +317,4 @@ export const translations = {
     },
   },
 };
+

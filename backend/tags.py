@@ -23,6 +23,7 @@ PREFERENCES = {
     "photo": {"en": "photography", "ko": "사진"},
     "quiet": {"en": "quiet", "ko": "조용한"},
     "night_view": {"en": "night views", "ko": "야경"},
+    "lively": {"en": "lively energy", "ko": "활기찬"},
     "exhibition": {"en": "exhibitions", "ko": "전시"},
     "shopping": {"en": "shopping", "ko": "쇼핑"},
     "reading": {"en": "reading", "ko": "독서"},
