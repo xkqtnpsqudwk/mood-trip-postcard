@@ -81,10 +81,8 @@ class PlaceOut(BaseModel):
     city: str
     name: str
     description: str
-    mood_tags: str
     name_i18n: LocalizedText
     description_i18n: LocalizedText
-    mood_tags_i18n: LocalizedText
     image_url: str | None = None
     match_score: int = 0
     type: str = ""
@@ -250,10 +248,8 @@ def _row_to_place(
         city=row["city"],
         name=_localized(row, "name", language),
         description=_localized(row, "description", language),
-        mood_tags=_localized(row, "mood_tags", language),
         name_i18n=_localized_pair(row, "name"),
         description_i18n=_localized_pair(row, "description"),
-        mood_tags_i18n=_localized_pair(row, "mood_tags"),
         image_url=row["image_url"],
         match_score=score,
         type=_localized(row, "type", language),
@@ -328,55 +324,6 @@ def _tag_out(vocab: dict, code: str) -> LocalizedTag:
     return LocalizedTag(en=entry.get("en", code), ko=entry.get("ko", code))
 
 
-def _extract_style_preferences(style_text: str) -> tuple[set[str], set[str]]:
-    source = (style_text or "").lower()
-    preference_codes = set()
-    avoid_codes = set()
-    preference_aliases = {
-        "walking": {"walk", "walking", "stroll", "wander", "산책", "걷"},
-        "riverside": {"river", "riverside", "water", "stream", "강변", "한강", "물가", "하천"},
-        "photo": {"photo", "photography", "picture", "사진", "포토"},
-        "quiet": {"quiet", "calm", "peaceful", "조용", "차분", "고요"},
-        "night_view": {"night view", "night views", "skyline", "야경", "밤풍경"},
-        "exhibition": {"exhibition", "museum", "gallery", "art", "전시", "미술관", "갤러리"},
-        "shopping": {"shopping", "shop", "market", "쇼핑", "상점", "시장"},
-        "reading": {"reading", "book", "books", "bookstore", "독서", "서점"},
-        "cafe": {"cafe", "cafes", "coffee", "카페", "커피"},
-        "history": {"history", "historic", "palace", "역사", "궁", "궁궐", "전통"},
-    }
-    avoid_aliases = {
-        "crowded": {"crowded", "busy", "crowd", "사람 많", "붐비", "복잡"},
-        "far": {"far", "too far", "먼", "멀리"},
-        "expensive": {"expensive", "pricey", "비싼", "비싸", "가격"},
-        "complex_route": {"complex route", "complicated route", "복잡한 동선", "환승"},
-        "long_wait": {"long wait", "queue", "wait", "긴 대기", "줄"},
-        "long_distance": {"long distance", "long travel", "긴 이동", "이동이 긴"},
-        "too_touristy": {"touristy", "too touristy", "관광지스러운", "관광객"},
-    }
-
-    for code, label_map in tags.PREFERENCES.items():
-        words = {
-            code.replace("_", " "),
-            label_map["en"].lower(),
-            label_map["ko"].lower(),
-            *preference_aliases.get(code, set()),
-        }
-        if any(word and word in source for word in words):
-            preference_codes.add(code)
-
-    for code, label_map in tags.AVOID.items():
-        words = {
-            code.replace("_", " "),
-            label_map["en"].lower(),
-            label_map["ko"].lower(),
-            *avoid_aliases.get(code, set()),
-        }
-        if any(word and word in source for word in words):
-            avoid_codes.add(code)
-
-    return preference_codes, avoid_codes
-
-
 def _rank_places(
     places: list[sqlite3.Row],
     preference_codes: set[str],
@@ -443,7 +390,15 @@ def analyze(
     combined_tags = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in analysis["tags"]]
     avoid_tag_out = [_tag_out(tags.AVOID, code) for code in analysis["avoid"]]
 
-    preference_codes, ranking_avoid_codes = _extract_style_preferences(style_text)
+    try:
+        style_profile = ai_service.extract_travel_style(style_text, payload.language)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Travel style extraction failed: {exc}"
+        ) from exc
+
+    preference_codes = set(style_profile["preferences"])
+    ranking_avoid_codes = set(style_profile["avoid"])
 
     ranked = _rank_places(
         places,

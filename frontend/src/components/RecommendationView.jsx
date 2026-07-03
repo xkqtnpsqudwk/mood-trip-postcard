@@ -134,10 +134,6 @@ export default function RecommendationView({
                 {localized(selectedPlace.description_i18n, lang) ||
                   selectedPlace.description}
               </span>
-              <span className="mt-3 text-xs text-stone-400 dark:text-zinc-500">
-                {localized(selectedPlace.mood_tags_i18n, lang) ||
-                  selectedPlace.mood_tags}
-              </span>
               {(localized(selectedPlace.reason_i18n, lang) || selectedPlace.reason) && (
                 <p className="mt-3 text-xs italic leading-relaxed text-stone-500 dark:text-zinc-400">
                   {localized(selectedPlace.reason_i18n, lang) || selectedPlace.reason}

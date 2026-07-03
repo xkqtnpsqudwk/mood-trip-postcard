@@ -158,6 +158,75 @@ def analyze_mood(
     }
 
 
+def extract_travel_style(style_text: str, language: str = "en") -> dict[str, list[str]]:
+    """Extract fixed-vocabulary travel preferences from the saved style profile.
+
+    Returns: {"preferences": [code, ...], "avoid": [code, ...]}
+    """
+    if not style_text.strip():
+        return {"preferences": [], "avoid": []}
+
+    client = _get_client()
+    preference_vocab = {
+        code: {"en": label["en"], "ko": label["ko"]}
+        for code, label in tags.PREFERENCES.items()
+    }
+    avoid_vocab = {
+        code: {"en": label["en"], "ko": label["ko"]}
+        for code, label in tags.AVOID.items()
+    }
+    system_prompt = (
+        "You extract travel style from a user's saved free-text profile. "
+        "Return only fixed vocabulary codes from the provided lists. "
+        "Use preferences for things the user likes or wants more of. "
+        "Use avoid for things the user explicitly dislikes, wants to avoid, "
+        "or finds uncomfortable. Do not infer companionship style; the product "
+        "targets solo travelers by default. Be conservative: if a preference "
+        "is vague or not clearly expressed, leave it out. Respond with ONLY "
+        "a JSON object in this exact shape: "
+        '{"preferences": ["walking", "cafe"], "avoid": ["crowded"]}'
+    )
+    user_prompt = json.dumps(
+        {
+            "style_text": style_text,
+            "language": _language_name(language),
+            "allowed_preferences": preference_vocab,
+            "allowed_avoid": avoid_vocab,
+        },
+        ensure_ascii=False,
+    )
+
+    completion = client.chat.completions.create(
+        model=OPENAI_TEXT_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.1,
+        max_tokens=400,
+        response_format={"type": "json_object"},
+        timeout=OPENAI_TIMEOUT_SECONDS,
+    )
+    content = completion.choices[0].message.content
+    data = _extract_json(content)
+    valid_preferences = set(tags.PREFERENCES.keys())
+    valid_avoid = set(tags.AVOID.keys())
+    preferences = [
+        str(code).strip().lower()
+        for code in data.get("preferences", [])
+        if str(code).strip().lower() in valid_preferences
+    ]
+    avoid = [
+        str(code).strip().lower()
+        for code in data.get("avoid", [])
+        if str(code).strip().lower() in valid_avoid
+    ]
+    return {
+        "preferences": list(dict.fromkeys(preferences)),
+        "avoid": list(dict.fromkeys(avoid)),
+    }
+
+
 def generate_postcard(
     city: str,
     place_name: str,
