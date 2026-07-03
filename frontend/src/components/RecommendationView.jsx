@@ -26,6 +26,7 @@ export default function RecommendationView({
   onSelectPlace,
   onStartOver,
   onEndTrip,
+  isEndingTrip = false,
   onDismiss,
 }) {
   const { t, lang } = useLanguage();
@@ -42,9 +43,10 @@ export default function RecommendationView({
       {isContinuation && (
         <button
           onClick={onEndTrip}
+          disabled={isEndingTrip}
           className="text-sm font-semibold text-rose-500 underline-offset-4 hover:text-rose-600 hover:underline dark:text-fuchsia-300 dark:hover:text-fuchsia-200"
         >
-          {t.recommendation.endTrip}
+          {isEndingTrip ? t.finalPostcard.loading : t.recommendation.endTrip}
         </button>
       )}
       <button

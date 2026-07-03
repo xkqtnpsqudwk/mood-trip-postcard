@@ -121,6 +121,12 @@ export const translations = {
         `${title}\n${city} · ${place}\n${message}\n\nShared from MoodTrip`,
     },
     postcardArrived: "Your postcard has arrived ✉",
+    finalPostcard: {
+      heading: "Your final trip postcard is ready",
+      subheading:
+        "We gathered every postcard from this journey into one complete memory.",
+      loading: "Making the final postcard...",
+    },
     findNextStop: "Find my next stop →",
     endTrip: "Finish this trip",
     planAnother: "Start a whole new trip",
@@ -130,6 +136,8 @@ export const translations = {
         "We couldn't read your mood within 90 seconds. Please try again.",
       postcard:
         "We couldn't create your postcard within 90 seconds. Please try again.",
+      finalPostcard:
+        "We couldn't create your final trip postcard within 90 seconds. Please try again.",
     },
     tagLabels: {},
   },
@@ -252,6 +260,11 @@ export const translations = {
         `${title}\n${city} · ${place}\n${message}\n\nMoodTrip에서 공유`,
     },
     postcardArrived: "엽서가 도착했어요 ✉",
+    finalPostcard: {
+      heading: "최종 여정 엽서가 완성됐어요",
+      subheading: "이번 여정의 모든 엽서와 문구를 모아 하나의 기억으로 엮었어요.",
+      loading: "최종 엽서를 만드는 중...",
+    },
     findNextStop: "다음 정거장 찾기 →",
     endTrip: "여행 마무리하기",
     planAnother: "완전히 새로운 여행 시작하기",
@@ -259,6 +272,7 @@ export const translations = {
     errors: {
       analyze: "90초 안에 기분을 분석하지 못했어요. 다시 시도해주세요.",
       postcard: "90초 안에 엽서를 만들지 못했어요. 다시 시도해주세요.",
+      finalPostcard: "90초 안에 최종 엽서를 만들지 못했어요. 다시 시도해주세요.",
     },
     tagLabels: {
       adventurous: "모험적인",

@@ -11,7 +11,12 @@ import PersonalizationSettings from "./components/PersonalizationSettings";
 import { LanguageProvider, useLanguage } from "./LanguageContext";
 import { ThemeProvider, useTheme } from "./ThemeContext";
 import { AuthProvider, useAuth } from "./AuthContext";
-import { analyzeMood, createPostcard, updatePostcardNextPlace } from "./api";
+import {
+  analyzeMood,
+  createFinalTripPostcard,
+  createPostcard,
+  updatePostcardNextPlace,
+} from "./api";
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
@@ -76,11 +81,13 @@ function AppContent() {
   const [createdPostcard, setCreatedPostcard] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCreatingPostcard, setIsCreatingPostcard] = useState(false);
+  const [isFinalizingTrip, setIsFinalizingTrip] = useState(false);
   const [error, setError] = useState(null);
   const [archiveRefreshKey, setArchiveRefreshKey] = useState(0);
   const [tripId, setTripId] = useState(null);
   const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
   const [lastPostcardId, setLastPostcardId] = useState(null);
+  const [finalTripPostcard, setFinalTripPostcard] = useState(null);
 
   useEffect(() => {
     if (!isAuthLoading && user) setView("app");
@@ -101,6 +108,7 @@ function AppContent() {
     setTripId(null);
     setVisitedPlaceIds([]);
     setLastPostcardId(null);
+    setFinalTripPostcard(null);
   };
 
   const handleMoodSubmit = async (formState) => {
@@ -164,9 +172,27 @@ function AppContent() {
     setStep("recommend");
   };
 
-  const handleEndTrip = () => {
-    resetFlow();
-    setActiveTab("archive");
+  const handleEndTrip = async () => {
+    if (!tripId) {
+      resetFlow();
+      setActiveTab("archive");
+      return;
+    }
+
+    setError(null);
+    setIsFinalizingTrip(true);
+    try {
+      const finalPostcard = await createFinalTripPostcard(tripId, lang);
+      setFinalTripPostcard(finalPostcard);
+      setCreatedPostcard(null);
+      setSelectedPlace(null);
+      setStep("tripFinale");
+      setActiveTab("create");
+    } catch {
+      setError(t.errors.finalPostcard);
+    } finally {
+      setIsFinalizingTrip(false);
+    }
   };
 
   const handleDismissRecommendations = () => {
@@ -259,6 +285,7 @@ function AppContent() {
                 onSelectPlace={handleSelectPlace}
                 onStartOver={resetFlow}
                 onEndTrip={handleEndTrip}
+                isEndingTrip={isFinalizingTrip}
                 onDismiss={handleDismissRecommendations}
               />
             )}
@@ -291,7 +318,6 @@ function AppContent() {
                   {t.postcardArrived}
                 </p>
                 <Postcard postcard={createdPostcard} defaultFlipped={false} />
-                <SharePanel postcard={createdPostcard} compact />
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   {hasRemainingStops && (
                     <button
@@ -303,13 +329,43 @@ function AppContent() {
                   )}
                   <button
                     onClick={handleEndTrip}
+                    disabled={isFinalizingTrip}
                     className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
                   >
-                    {t.endTrip}
+                    {isFinalizingTrip ? t.finalPostcard.loading : t.endTrip}
                   </button>
                   <button
                     onClick={resetFlow}
                     className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    {t.planAnother}
+                  </button>
+                </div>
+              </div>
+            )}
+            {step === "tripFinale" && finalTripPostcard && (
+              <div className="mx-auto w-full max-w-md">
+                <p className="mb-2 text-center text-sm font-medium text-stone-600 dark:text-zinc-300">
+                  {t.finalPostcard.heading}
+                </p>
+                <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
+                  {t.finalPostcard.subheading}
+                </p>
+                <Postcard postcard={finalTripPostcard} defaultFlipped={false} />
+                <SharePanel postcard={finalTripPostcard} compact />
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      resetFlow();
+                      setActiveTab("archive");
+                    }}
+                    className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    {t.viewArchive}
+                  </button>
+                  <button
+                    onClick={resetFlow}
+                    className="rounded-xl bg-rose-400 px-5 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
                   >
                     {t.planAnother}
                   </button>

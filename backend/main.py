@@ -2,6 +2,7 @@
 import sqlite3
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -114,6 +115,10 @@ class PostcardRequest(BaseModel):
 
 class NextPlaceRequest(BaseModel):
     next_place_id: int
+
+
+class FinalTripPostcardRequest(BaseModel):
+    language: str = "en"
 
 
 class PostcardOut(BaseModel):
@@ -516,6 +521,70 @@ def update_postcard_next_place(
     )
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, language, places_by_id)
+
+
+@app.post("/api/trip/{trip_id}/final-postcard", response_model=PostcardOut)
+def create_final_trip_postcard(
+    trip_id: str,
+    payload: FinalTripPostcardRequest,
+    user: sqlite3.Row = Depends(require_user),
+) -> PostcardOut:
+    rows = database.get_postcards_by_trip(trip_id, user["id"])
+    if not rows:
+        raise HTTPException(status_code=404, detail="Trip postcards not found")
+
+    city = rows[0]["city"]
+    trip_items = []
+    for row in rows:
+        title = _row_value(row, "title_en", row["title"])
+        message = _row_value(row, "message_en", row["message"])
+        trip_items.append(
+            {
+                "place_name": row["place_name"],
+                "title": title,
+                "message": message,
+                "review": row["review"],
+                "image_base64": row["image_base64"],
+            }
+        )
+
+    try:
+        generated = ai_service.generate_trip_postcard(
+            city=city,
+            postcards=trip_items,
+            language=payload.language,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Final postcard generation failed: {exc}"
+        ) from exc
+
+    place_name_i18n = LocalizedText(en=f"{city} Trip", ko=f"{city} 여정")
+    return PostcardOut(
+        id=0,
+        city=city,
+        place_name=place_name_i18n.ko if payload.language == "ko" else place_name_i18n.en,
+        place_name_i18n=place_name_i18n,
+        title=generated["title"]["ko"] if payload.language == "ko" else generated["title"]["en"],
+        message=generated["message"]["ko"]
+        if payload.language == "ko"
+        else generated["message"]["en"],
+        title_i18n=LocalizedText(
+            en=generated["title"]["en"],
+            ko=generated["title"]["ko"],
+        ),
+        message_i18n=LocalizedText(
+            en=generated["message"]["en"],
+            ko=generated["message"]["ko"],
+        ),
+        review="\n".join(item["review"] for item in trip_items if item["review"]),
+        image_base64=generated["image_base64"],
+        created_at=datetime.utcnow().isoformat(),
+        trip_id=trip_id,
+        next_place_id=None,
+        next_place_name=None,
+        next_place_name_i18n=None,
+    )
 
 
 @app.get("/api/archive", response_model=list[PostcardOut])

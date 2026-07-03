@@ -338,3 +338,120 @@ def generate_postcard_image(
     if not image_base64:
         raise RuntimeError("OpenAI image response did not include image data")
     return image_base64
+
+
+def generate_trip_postcard(
+    city: str,
+    postcards: list[dict],
+    language: str = "en",
+) -> dict:
+    """Create one final postcard from every postcard in a finished trip.
+
+    Returns: {"title": {"en": str, "ko": str}, "message": {"en": str, "ko": str},
+              "image_base64": str}
+    """
+    if not postcards:
+        raise ValueError("postcards must not be empty")
+
+    client = _get_client()
+    trip_notes = [
+        {
+            "place_name": item.get("place_name") or "",
+            "title": item.get("title") or "",
+            "message": item.get("message") or "",
+            "review": item.get("review") or "",
+        }
+        for item in postcards
+    ]
+    text_prompt = json.dumps(
+        {
+            "city": city,
+            "language": _language_name(language),
+            "trip_postcards": trip_notes,
+        },
+        ensure_ascii=False,
+    )
+    completion = client.chat.completions.create(
+        model=OPENAI_TEXT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a travel editor creating one final postcard from "
+                    "a completed solo city trip. Read every stop's place, "
+                    "postcard message, and review. Write one cohesive final "
+                    "postcard title under 8 words and a 3-5 sentence message "
+                    "that feels like the whole journey, not a list. Return both "
+                    "English and Korean. English text must use English only. "
+                    "Korean text must use Korean only, except place names when "
+                    "needed. Respond with ONLY JSON in this shape: "
+                    '{"title": {"en": "title", "ko": "제목"}, '
+                    '"message": {"en": "message", "ko": "메시지"}}'
+                ),
+            },
+            {"role": "user", "content": text_prompt},
+        ],
+        temperature=0.75,
+        max_tokens=900,
+        response_format={"type": "json_object"},
+        timeout=OPENAI_TIMEOUT_SECONDS,
+    )
+    data = _extract_json(completion.choices[0].message.content)
+    title = _localized_text(data.get("title", "MoodTrip"))
+    message = _localized_text(data.get("message", ""))
+
+    image_sources = [
+        item.get("image_base64")
+        for item in postcards
+        if item.get("image_base64")
+    ][:8]
+    image_context = "\n".join(
+        f"{index}. {item.get('place_name', '')}: "
+        f"{item.get('title', '')} / {item.get('message', '')} / {item.get('review', '')}"
+        for index, item in enumerate(trip_notes, start=1)
+    )
+    if image_sources:
+        prompt = (
+            "Create one polished horizontal final travel postcard collage from "
+            f"these trip images and notes for {city}. The final image should "
+            "feel cohesive, warm, cinematic, and complete, like the visual "
+            "memory of a finished solo city journey. Blend the provided "
+            "postcard images into one elegant composition while preserving "
+            "their real photographed details. Do not add any text, letters, "
+            f"captions, logos, or watermarks. Trip notes:\n{image_context}"
+        )
+        response = client.images.edit(
+            model=OPENAI_IMAGE_MODEL,
+            image=[
+                _image_file_from_base64(image, index)
+                for index, image in enumerate(image_sources, start=1)
+            ],
+            prompt=prompt,
+            size="1536x1024",
+            quality="medium",
+            timeout=OPENAI_TIMEOUT_SECONDS,
+        )
+    else:
+        prompt = (
+            f"A beautiful horizontal final travel postcard photograph for a "
+            f"completed solo trip in {city}. Mood: {message['en']}. Create a "
+            "cohesive cinematic travel memory, warm natural light, realistic "
+            "postcard aesthetic, no text, no words, no writing anywhere. "
+            f"Trip notes:\n{image_context}"
+        )
+        response = client.images.generate(
+            model=OPENAI_IMAGE_MODEL,
+            prompt=prompt,
+            size="1536x1024",
+            quality="medium",
+            timeout=OPENAI_TIMEOUT_SECONDS,
+        )
+
+    image_base64 = _response_image_base64(response)
+    if not image_base64:
+        raise RuntimeError("OpenAI trip image response did not include image data")
+    return {
+        "title": title,
+        "message": message,
+        "image_base64": image_base64,
+    }

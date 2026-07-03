@@ -124,7 +124,7 @@ async function downloadShareImage({ postcard, title, message, review, placeName,
   context.fillText(t.share.footer, 80, 1268);
 
   const link = document.createElement("a");
-  link.download = `moodtrip-${postcard.id}.png`;
+  link.download = `moodtrip-${postcard.id || postcard.trip_id || "trip"}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
