@@ -86,9 +86,9 @@ async function downloadShareImage({ postcard, placeName, cityName, t }) {
   drawRoundedRect(context, 80, imageTop, 920, imageHeight, 36);
   context.save();
   context.clip();
-  if (postcard.image_base64) {
+  if (postcard.image_url) {
     try {
-      const image = await loadImage(`data:image/png;base64,${postcard.image_base64}`);
+      const image = await loadImage(postcard.image_url);
       const scale = Math.max(920 / image.width, imageHeight / image.height);
       const width = image.width * scale;
       const height = image.height * scale;

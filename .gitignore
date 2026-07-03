@@ -10,6 +10,7 @@ venv/
 backend/venv/
 backend/*.db
 backend/app.db
+backend/uploads/
 
 # Node
 node_modules/

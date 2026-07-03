@@ -40,10 +40,10 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
     >
       <div className="postcard-flip-inner relative h-full w-full">
         <div className="postcard-face absolute inset-0 overflow-hidden rounded-2xl bg-stone-100 shadow-[0_20px_45px_-12px_rgba(167,139,250,0.4)] ring-1 ring-white/60 dark:bg-zinc-900 dark:ring-cyan-500/20 dark:shadow-[0_0_30px_rgba(34,211,238,0.2)]">
-          {postcard.image_base64 ? (
+          {postcard.image_url ? (
             <>
               <img
-                src={`data:image/png;base64,${postcard.image_base64}`}
+                src={postcard.image_url}
                 alt={`${placeName} postcard`}
                 className="h-full w-full object-cover"
               />

@@ -1,12 +1,15 @@
 """FastAPI application for MoodTrip."""
+import base64
 import sqlite3
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 load_dotenv()
@@ -32,6 +35,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+UPLOADS_DIR = Path(__file__).parent / "uploads"
+POSTCARD_IMAGES_DIR = UPLOADS_DIR / "postcards"
+POSTCARD_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+
+
+def _save_postcard_image(image_base64: str) -> str:
+    """Write a base64-encoded image to disk and return its /uploads-relative path."""
+    filename = f"{uuid.uuid4().hex}.jpg"
+    (POSTCARD_IMAGES_DIR / filename).write_bytes(base64.b64decode(image_base64))
+    return f"postcards/{filename}"
+
+
+def _ensure_postcard_image_file(row: sqlite3.Row) -> sqlite3.Row:
+    """Lazily migrate a legacy inline-base64 postcard image onto disk."""
+    if row["image_path"] or not row["image_base64"]:
+        return row
+    image_path = _save_postcard_image(row["image_base64"])
+    return database.set_postcard_image_path(row["id"], image_path)
+
+
+def _read_postcard_image_base64(row: sqlite3.Row) -> str | None:
+    """Read a postcard's image as base64, from disk or the legacy DB blob."""
+    if row["image_path"]:
+        return base64.b64encode((UPLOADS_DIR / row["image_path"]).read_bytes()).decode()
+    return row["image_base64"]
 
 
 class AnalyzeRequest(BaseModel):
@@ -131,7 +161,7 @@ class PostcardOut(BaseModel):
     title_i18n: LocalizedText
     message_i18n: LocalizedText
     review: str
-    image_base64: str | None = None
+    image_url: str | None = None
     created_at: str
     trip_id: str
     next_place_id: int | None = None
@@ -315,7 +345,7 @@ def _row_to_postcard(
         title_i18n=LocalizedText(en=title_en, ko=title_ko),
         message_i18n=LocalizedText(en=message_en, ko=message_ko),
         review=row["review"],
-        image_base64=row["image_base64"],
+        image_url=f"/uploads/{row['image_path']}" if row["image_path"] else None,
         created_at=row["created_at"],
         trip_id=_row_value(row, "trip_id"),
         next_place_id=row["next_place_id"],
@@ -460,6 +490,7 @@ def create_postcard(
         ) from exc
 
     trip_id = payload.trip_id or str(uuid.uuid4())
+    image_path = _save_postcard_image(image_base64)
 
     # next_place is filled in later, via update_postcard_next_place, once the
     # traveler actually visits another stop on this trip — it should never be
@@ -471,7 +502,7 @@ def create_postcard(
         message="",
         review=payload.review,
         trip_id=trip_id,
-        image_base64=image_base64,
+        image_path=image_path,
         place_id=place["id"],
         title_en="",
         message_en="",
@@ -505,6 +536,7 @@ def update_postcard_next_place(
         next_place_name_en=_localized(next_place, "name", "en"),
         next_place_name_ko=_localized(next_place, "name", "ko"),
     )
+    row = _ensure_postcard_image_file(row)
     places_by_id = {p["id"]: p for p in places}
     return _row_to_postcard(row, language, places_by_id)
 
@@ -530,7 +562,7 @@ def create_final_trip_postcard(
                 "title": title,
                 "message": message,
                 "review": row["review"],
-                "image_base64": row["image_base64"],
+                "image_base64": _read_postcard_image_base64(row),
             }
         )
 
@@ -564,7 +596,7 @@ def create_final_trip_postcard(
             ko=generated["message"]["ko"],
         ),
         review="\n".join(item["review"] for item in trip_items if item["review"]),
-        image_base64=generated["image_base64"],
+        image_url=f"/uploads/{_save_postcard_image(generated['image_base64'])}",
         created_at=datetime.utcnow().isoformat(),
         trip_id=trip_id,
         next_place_id=None,
@@ -578,6 +610,7 @@ def archive(
     language: str = "en", user: sqlite3.Row | None = Depends(get_current_user)
 ) -> list[PostcardOut]:
     rows = database.get_all_postcards(user["id"] if user else None)
+    rows = [_ensure_postcard_image_file(row) for row in rows]
     places_by_id = {p["id"]: p for p in database.get_all_places()}
     return [_row_to_postcard(row, language, places_by_id) for row in rows]
 

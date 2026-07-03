@@ -4,6 +4,8 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "app.db"
 
+SESSION_TTL_DAYS = 30
+
 PLACE_COLUMN_DEFS = [
     ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
     ("city", "TEXT NOT NULL"),
@@ -96,6 +98,7 @@ def init_db() -> None:
     )
     for column in (
         "image_base64 TEXT",
+        "image_path TEXT",
         "place_id INTEGER",
         "title_en TEXT",
         "message_en TEXT",
@@ -132,9 +135,11 @@ def init_db() -> None:
         )
         """
     )
-    # Sessions are cleared every time the app starts up, so a server restart
-    # always logs everyone out rather than leaving stale tokens around.
-    cursor.execute("DELETE FROM sessions")
+    # Only prune sessions past their expiry on startup; a server restart no
+    # longer logs everyone out (see SESSION_TTL_DAYS / get_user_by_token).
+    cursor.execute(
+        f"DELETE FROM sessions WHERE created_at <= datetime('now', '-{SESSION_TTL_DAYS} days')"
+    )
 
     cursor.execute(
         """
@@ -150,6 +155,17 @@ def init_db() -> None:
             cursor.execute(f"ALTER TABLE user_preferences ADD COLUMN {column}")
         except sqlite3.OperationalError:
             pass  # column already exists on a pre-existing database
+
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_postcards_user_created "
+        "ON postcards(user_id, created_at)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_postcards_trip_id ON postcards(trip_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_places_city ON places(city COLLATE NOCASE)"
+    )
 
     conn.commit()
 
@@ -1576,6 +1592,7 @@ def insert_postcard(
     review: str,
     trip_id: str,
     image_base64: str | None = None,
+    image_path: str | None = None,
     place_id: int | None = None,
     title_en: str | None = None,
     message_en: str | None = None,
@@ -1590,12 +1607,12 @@ def insert_postcard(
     cursor = conn.execute(
         """
         INSERT INTO postcards (
-            city, place_name, title, message, review, image_base64, place_id,
-            title_en, message_en, title_ko, message_ko,
+            city, place_name, title, message, review, image_base64, image_path,
+            place_id, title_en, message_en, title_ko, message_ko,
             next_place_id, next_place_name_en, next_place_name_ko, trip_id,
             user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             city,
@@ -1604,6 +1621,7 @@ def insert_postcard(
             message,
             review,
             image_base64,
+            image_path,
             place_id,
             title_en or title,
             message_en or message,
@@ -1627,6 +1645,19 @@ def insert_postcard(
 
 def get_postcard_by_id(postcard_id: int) -> sqlite3.Row | None:
     conn = get_connection()
+    row = conn.execute("SELECT * FROM postcards WHERE id = ?", (postcard_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def set_postcard_image_path(postcard_id: int, image_path: str) -> sqlite3.Row:
+    """Point a postcard at its on-disk image file, clearing any legacy inline blob."""
+    conn = get_connection()
+    conn.execute(
+        "UPDATE postcards SET image_path = ?, image_base64 = NULL WHERE id = ?",
+        (image_path, postcard_id),
+    )
+    conn.commit()
     row = conn.execute("SELECT * FROM postcards WHERE id = ?", (postcard_id,)).fetchone()
     conn.close()
     return row
@@ -1723,10 +1754,11 @@ def create_session(token: str, user_id: int) -> None:
 def get_user_by_token(token: str) -> sqlite3.Row | None:
     conn = get_connection()
     row = conn.execute(
-        """
+        f"""
         SELECT users.* FROM sessions
         JOIN users ON users.id = sessions.user_id
         WHERE sessions.token = ?
+          AND sessions.created_at > datetime('now', '-{SESSION_TTL_DAYS} days')
         """,
         (token,),
     ).fetchone()
