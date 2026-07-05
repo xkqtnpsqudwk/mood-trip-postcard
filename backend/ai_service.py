@@ -31,29 +31,6 @@ def _get_client() -> OpenAI:
     return _client
 
 
-def _localized_text(value, fallback: str = "") -> dict[str, str]:
-    if isinstance(value, dict):
-        en = str(value.get("en") or value.get("english") or fallback).strip()
-        ko = str(value.get("ko") or value.get("korean") or fallback).strip()
-        return {"en": en, "ko": ko}
-    text = str(value or fallback).strip()
-    return {"en": text, "ko": text}
-
-
-def _localized_tags(value) -> list[dict[str, str]]:
-    tags = []
-    for item in value or []:
-        if isinstance(item, dict):
-            en = str(item.get("en") or item.get("english") or "").strip().lower()
-            ko = str(item.get("ko") or item.get("korean") or en).strip()
-        else:
-            en = str(item).strip().lower()
-            ko = en
-        if en:
-            tags.append({"en": en, "ko": ko})
-    return tags
-
-
 def _image_file_from_base64(value: str, index: int):
     match = re.match(r"^data:(image/[^;]+);base64,(.*)$", value, re.DOTALL)
     if match:
@@ -108,10 +85,7 @@ _PLACE_SCHEMA = {
         "duration": {"type": "string", "enum": list(tags.AVAILABLE_TIME.keys())},
         "reason_en": {"type": "string"},
         "reason_ko": {"type": "string"},
-        "avoid_warning": {
-            "type": ["string", "null"],
-            "enum": list(tags.AVOID.keys()) + [None],
-        },
+        "intensity_level": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH"]},
         "map_x": {"type": "number"},
         "map_y": {"type": "number"},
         "latitude": {"type": "number"},
@@ -120,7 +94,7 @@ _PLACE_SCHEMA = {
     "required": [
         "name_en", "name_ko", "type_en", "type_ko", "description_en",
         "description_ko", "duration", "reason_en", "reason_ko",
-        "avoid_warning", "map_x", "map_y", "latitude", "longitude",
+        "intensity_level", "map_x", "map_y", "latitude", "longitude",
     ],
     "additionalProperties": False,
 }
@@ -130,19 +104,9 @@ _RECOMMEND_TRIP_SCHEMA = {
     "properties": {
         "clue_en": {"type": "string"},
         "clue_ko": {"type": "string"},
-        "tags": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {"en": {"type": "string"}, "ko": {"type": "string"}},
-                "required": ["en", "ko"],
-                "additionalProperties": False,
-            },
-        },
-        "avoid": {"type": "array", "items": {"type": "string", "enum": list(tags.AVOID.keys())}},
         "places": {"type": "array", "items": _PLACE_SCHEMA},
     },
-    "required": ["clue_en", "clue_ko", "tags", "avoid", "places"],
+    "required": ["clue_en", "clue_ko", "places"],
     "additionalProperties": False,
 }
 
@@ -158,45 +122,75 @@ def recommend_trip(
 
     Replaces the old fixed-catalog lookup: instead of ranking a seeded
     `places` table, the model itself proposes 4-6 places in `city` that fit
-    the traveler's current mood and saved style. It's required to use the
-    web_search tool to confirm each place actually exists and is currently
-    operating, rather than recommending from parametric memory alone.
+    the traveler's current mood and, if saved, their broader personality
+    profile. It's required to use the web_search tool to confirm each place
+    actually exists and is currently operating, rather than recommending
+    from parametric memory alone.
 
-    Returns: {"clue": {"en", "ko"}, "tags": [{"en","ko"}, ...],
-              "avoid": [str, ...], "places": [{"name": {...}, "type": {...},
+    Returns: {"clue": {"en", "ko"}, "places": [{"name": {...}, "type": {...},
               "description": {...}, "duration": str, "reason": {...},
-              "avoid_warning": str | None, "map_position": {"x", "y"},
+              "intensity_level": "LOW"|"MEDIUM"|"HIGH", "map_position": {"x", "y"},
               "coordinates": {"lat", "lng"}}, ...]}
     """
     client = _get_client()
     duration_vocab = ", ".join(tags.AVAILABLE_TIME.keys())
-    avoid_vocab = ", ".join(tags.AVOID.keys())
     instructions = (
         "You are an emotionally perceptive solo-travel companion. Given a city, "
-        "the traveler's current mood, and (optionally) their saved travel style, "
-        "recommend 4 to 6 real, currently-operating places in that exact city. "
-        "The traveler is solo by default. You MUST use the web_search tool to "
-        "verify each place actually exists and is currently operating before "
-        "including it - never rely on memory alone, and prefer well-known, "
-        "easily verifiable places over obscure ones. "
+        "the traveler's current mood, and (optionally) a free-text profile "
+        "they saved about themselves, recommend 4 to 6 real, currently-operating "
+        "places in that exact city. The saved profile describes who the "
+        "traveler is broadly - personality, general likes/dislikes, how they "
+        "tend to feel in different situations - not a literal list of travel "
+        "preferences, so read it for the kind of person they are and infer "
+        "what would suit them, rather than pattern-matching keywords. When "
+        "the current mood and the saved profile point in different "
+        "directions, prioritize the current mood - it's what they feel right "
+        "now, and use the saved profile mainly to adjust intensity, pace, and "
+        "social exposure. Avoid shallow keyword matching: if they feel low "
+        "but their profile says they're extroverted, don't default to a "
+        "quiet cafe - consider energetic but accessible places where they "
+        "can borrow energy from a crowd; if they feel overstimulated but "
+        "usually enjoy nightlife, prioritize the current need to decompress "
+        "over their usual taste; if they feel lonely, favor places where "
+        "being alone doesn't feel isolating (markets, riversides, "
+        "bookstores, museums, parks); if they feel anxious, avoid chaotic "
+        "picks unless their profile strongly suggests crowds feel like "
+        "comfort to them. Where it fits naturally, give the set some "
+        "emotional variety rather than five variations on the same idea - "
+        "for example a mix of something that answers the mood directly, "
+        "something that reflects their deeper personality, something with "
+        "sensory contrast, and something low-pressure and solo-friendly. "
+        "The traveler is solo by default. You MUST use the web_search "
+        "tool to verify each place actually exists and is currently operating "
+        "before including it - never rely on memory alone, and prefer "
+        "well-known, easily verifiable places over obscure ones. Only "
+        "recommend places actually inside the named city itself, not "
+        "neighboring towns or the wider metro area, unless the city name "
+        "given explicitly refers to that broader region. "
         "For each place, give a bilingual name/type/description/reason "
         "(natural English and Korean), a duration code from this fixed list: "
-        f"{duration_vocab}, an optional avoid_warning code from this fixed "
-        f"list (or null if none applies): {avoid_vocab}, an approximate "
-        "map_x/map_y (0-100) representing where the place roughly sits within "
-        "the city, with 0,0 as northwest and 100,100 as southeast, and the "
-        "place's real latitude/longitude (use web_search to find its actual "
-        "current coordinates - do not estimate from memory). Also write "
-        "one poetic metaphorical clue sentence (English and Korean) that hints "
-        "at today's mood, and 3-6 short emotional vibe tags (English lowercase "
-        "+ natural Korean, no hashtag). English text must use English only; "
-        "Korean text must use Korean only, except place names when needed."
+        f"{duration_vocab}, an intensity_level of LOW, MEDIUM, or HIGH for "
+        "how stimulating/energetic the place is, an approximate map_x/map_y "
+        "(0-100) representing where the place roughly sits within the city, "
+        "with 0,0 as northwest and 100,100 as southeast, and the place's "
+        "real latitude/longitude (use web_search to find its actual current "
+        "coordinates - do not estimate from memory). After choosing the "
+        "places, also write one poetic metaphorical clue sentence (English "
+        "and Korean) that hints at today's mood AND subtly resonates with a "
+        "thread the places you chose share in common (a pace, texture, "
+        "color, or feeling) - it should read like a preview of what's "
+        "ahead, not a generic mood note disconnected from the actual "
+        "recommendations. Vary the sentence's opening and structure every "
+        "time; do not default to a fixed template like always starting "
+        "with 'Today feels like...' or 'Follow...' - surprise with the "
+        "phrasing itself. English text must use English only; Korean text "
+        "must use Korean only, except place names when needed."
     )
     user_prompt = json.dumps(
         {
             "city": city,
             "mood_text": mood_text,
-            "style_text": style_text or "",
+            "saved_personality_profile": style_text or "",
             "preferred_ui_language_for_tone": _language_name(language),
         },
         ensure_ascii=False,
@@ -219,16 +213,16 @@ def recommend_trip(
     )
     data = json.loads(response.output_text)
 
-    valid_avoid = set(tags.AVOID.keys())
     valid_duration = set(tags.AVAILABLE_TIME.keys())
+    valid_intensity = {"LOW", "MEDIUM", "HIGH"}
     places = []
     for place in data.get("places", []):
-        avoid_warning = place.get("avoid_warning")
-        if avoid_warning not in valid_avoid:
-            avoid_warning = None
         duration = place.get("duration")
         if duration not in valid_duration:
             duration = next(iter(valid_duration))
+        intensity_level = place.get("intensity_level")
+        if intensity_level not in valid_intensity:
+            intensity_level = "MEDIUM"
         places.append(
             {
                 "name": {"en": place["name_en"], "ko": place["name_ko"]},
@@ -242,7 +236,7 @@ def recommend_trip(
                     "en": _strip_markdown_links(place["reason_en"]),
                     "ko": _strip_markdown_links(place["reason_ko"]),
                 },
-                "avoid_warning": avoid_warning,
+                "intensity_level": intensity_level,
                 "map_position": {
                     "x": max(0.0, min(100.0, float(place["map_x"]))),
                     "y": max(0.0, min(100.0, float(place["map_y"]))),
@@ -254,11 +248,8 @@ def recommend_trip(
             }
         )
 
-    avoid_out = [a for a in data.get("avoid", []) if a in valid_avoid]
     return {
         "clue": {"en": data["clue_en"], "ko": data["clue_ko"]},
-        "tags": _localized_tags(data.get("tags", [])),
-        "avoid": avoid_out,
         "places": places,
     }
 

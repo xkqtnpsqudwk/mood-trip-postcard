@@ -61,7 +61,7 @@ function drawRoundedRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-async function downloadShareImage({ postcard, placeName, cityName, t }) {
+async function downloadShareImage({ postcard, placeName, cityName, clue, review, t }) {
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1350;
@@ -117,6 +117,20 @@ async function downloadShareImage({ postcard, placeName, cityName, t }) {
   context.fillStyle = "#111827";
   context.font = "700 30px Arial, sans-serif";
   context.fillText("POST CARD", 120, cardTop + 58);
+
+  let messageY = cardTop + 92;
+  if (clue) {
+    context.font = "italic 19px Georgia, serif";
+    context.fillStyle = "#7c3aed";
+    messageY = wrapText(context, `"${clue}"`, 120, messageY, 400, 22, 2);
+  }
+  if (review) {
+    context.font = "400 18px Arial, sans-serif";
+    context.fillStyle = "#44403c";
+    messageY += 4;
+    wrapText(context, review, 120, messageY, 400, 22, 2);
+  }
+
   context.strokeStyle = "#a8a29e";
   context.lineWidth = 2;
   context.beginPath();
@@ -152,8 +166,18 @@ export default function SharePanel({ postcard, compact = false }) {
     const message = localized(postcard.message_i18n, lang) || postcard.message;
     const cityName = t.cities[postcard.city] ?? postcard.city;
     const review = postcard.review || "";
-    const caption = t.share.caption({ title, city: cityName, place: placeName, message, review });
-    return { placeName, title, message, cityName, review, caption };
+    const moodText = postcard.mood_text || "";
+    const clue = localized(postcard.clue_i18n, lang) || "";
+    const caption = t.share.caption({
+      title,
+      city: cityName,
+      place: placeName,
+      message,
+      review,
+      moodText,
+      clue,
+    });
+    return { placeName, title, message, cityName, review, moodText, clue, caption };
   }, [lang, postcard, t]);
 
   const handleCopy = async () => {

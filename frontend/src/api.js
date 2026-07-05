@@ -45,7 +45,16 @@ export const analyzeMood = ({ city, moodText, language, latitude, longitude }) =
     })
     .then((res) => res.data);
 
-export const createPostcard = (city, place, review, language, tripId, photoBase64List) =>
+export const createPostcard = (
+  city,
+  place,
+  review,
+  language,
+  tripId,
+  photoBase64List,
+  moodText,
+  clue
+) =>
   api
     .post("/postcard", {
       city,
@@ -56,6 +65,9 @@ export const createPostcard = (city, place, review, language, tripId, photoBase6
       language,
       trip_id: tripId || null,
       photo_base64_list: photoBase64List || [],
+      mood_text: moodText || "",
+      clue_en: clue?.en || "",
+      clue_ko: clue?.ko || "",
     })
     .then((res) => res.data);
 

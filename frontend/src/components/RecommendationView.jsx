@@ -2,20 +2,11 @@ import { useState } from "react";
 import CityMiniMap from "./CityMiniMap";
 import { useLanguage } from "../LanguageContext";
 
-const normalizeTag = (tag) => String(tag).trim().toLowerCase().replace(/[\s_]+/g, "-");
-
 const localized = (value, lang) => {
   if (value && typeof value === "object") {
     return value[lang] ?? value.en ?? value.ko ?? "";
   }
   return value ?? "";
-};
-
-const localizedTag = (tag, lang, t) => {
-  if (tag && typeof tag === "object") {
-    return localized(tag, lang);
-  }
-  return t.tagLabels?.[normalizeTag(tag)] ?? tag;
 };
 
 export default function RecommendationView({
@@ -33,7 +24,7 @@ export default function RecommendationView({
   const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState(null);
   if (!result) return null;
-  const { clue, tags, avoid_tags: avoidTags, places: allPlaces } = result;
+  const { clue, places: allPlaces } = result;
   const places = allPlaces.filter((place) => !visitedPlaceIds.includes(place.id));
   const selectedPlace =
     places.find((place) => place.id === selectedPlaceId) || places[0] || null;
@@ -75,28 +66,6 @@ export default function RecommendationView({
         <p className="mt-3 font-[family-name:var(--font-display)] text-lg italic text-stone-700 sm:text-xl dark:text-cyan-100">
           &ldquo;{localized(clue, lang)}&rdquo;
         </p>
-        {tags?.length > 0 && (
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {tags.map((tag, index) => (
-              <span
-                key={`${localizedTag(tag, "en", t)}-${index}`}
-                className="rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-rose-500 dark:bg-zinc-900/70 dark:text-fuchsia-300 dark:ring-1 dark:ring-fuchsia-500/20"
-              >
-                #{localizedTag(tag, lang, t)}
-              </span>
-            ))}
-          </div>
-        )}
-        {avoidTags?.length > 0 && (
-          <div className="mt-4 text-xs text-stone-500 dark:text-zinc-400">
-            <p>
-              <span className="font-semibold text-stone-600 dark:text-zinc-300">
-                {t.recommendation.avoidSummaryLabel}:
-              </span>{" "}
-              {avoidTags.map((tag) => localizedTag(tag, lang, t)).join(" · ")}
-            </p>
-          </div>
-        )}
       </div>
 
       <h3 className="mt-8 text-center text-lg font-medium text-stone-700 dark:text-zinc-200">
@@ -141,14 +110,6 @@ export default function RecommendationView({
                   {localized(selectedPlace.reason_i18n, lang) || selectedPlace.reason}
                 </p>
               )}
-              {(localized(selectedPlace.avoid_warning_i18n, lang) ||
-                selectedPlace.avoid_warnings?.join(", ")) && (
-                <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-                  {t.recommendation.avoidWarningPrefix}{" "}
-                  {localized(selectedPlace.avoid_warning_i18n, lang) ||
-                    selectedPlace.avoid_warnings.join(", ")}
-                </p>
-              )}
               <button
                 onClick={() => onSelectPlace(selectedPlace)}
                 className="mt-auto pt-5 text-left text-sm font-medium text-rose-400 hover:text-rose-500 dark:text-cyan-400 dark:hover:text-cyan-300"
@@ -163,6 +124,9 @@ export default function RecommendationView({
           {isContinuation ? t.recommendation.allVisited : t.recommendation.noMatches}
         </p>
       )}
+      <p className="mx-auto mt-4 max-w-xl text-center text-[11px] leading-relaxed text-stone-400 dark:text-zinc-500">
+        {t.recommendation.sourceDisclaimer}
+      </p>
     </div>
   );
 }

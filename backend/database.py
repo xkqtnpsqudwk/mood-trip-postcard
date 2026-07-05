@@ -48,6 +48,9 @@ def init_db() -> None:
         "next_place_name_ko TEXT",
         "trip_id TEXT",
         "user_id INTEGER",
+        "mood_text TEXT",
+        "clue_en TEXT",
+        "clue_ko TEXT",
     ):
         try:
             cursor.execute(f"ALTER TABLE postcards ADD COLUMN {column}")
@@ -125,6 +128,9 @@ def insert_postcard(
     next_place_name_en: str | None = None,
     next_place_name_ko: str | None = None,
     user_id: int | None = None,
+    mood_text: str | None = None,
+    clue_en: str | None = None,
+    clue_ko: str | None = None,
 ) -> sqlite3.Row:
     conn = get_connection()
     cursor = conn.execute(
@@ -133,9 +139,9 @@ def insert_postcard(
             city, place_name, title, message, review, image_base64, image_path,
             place_name_en, place_name_ko, title_en, message_en, title_ko, message_ko,
             next_place_name_en, next_place_name_ko, trip_id,
-            user_id
+            user_id, mood_text, clue_en, clue_ko
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             city,
@@ -155,6 +161,9 @@ def insert_postcard(
             next_place_name_ko,
             trip_id,
             user_id,
+            mood_text,
+            clue_en,
+            clue_ko,
         ),
     )
     conn.commit()

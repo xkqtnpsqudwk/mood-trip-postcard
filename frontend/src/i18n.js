@@ -32,15 +32,15 @@
       postcardLoginPrompt: "Log in when you're ready to save a visit as a postcard.",
     },
     personalization: {
-      heading: "My travel style",
+      heading: "About me",
       subheading:
-        "Write a few sentences about places, moods, and situations you prefer or avoid - we'll read it alongside every mood search you make while logged in.",
+        "Write a few sentences about who you are - your personality, what you like or dislike, how you tend to feel in different situations. We'll read it alongside every mood search you make while logged in.",
       placeholder:
-        "I like quiet riverside walks, cafes, old alleyways, and places where I can sit for a while. I try to avoid crowded, overly touristy spots and long waits...",
-      save: "Save my style",
+        "I'm introverted and like quiet, unhurried places. Crowds wear me out, but I love discovering something unexpected. I'm drawn to old things, soft light, and calm atmospheres...",
+      save: "Save my profile",
       saving: "Saving...",
       saved: "Saved! This will apply to your next mood search.",
-      loginRequired: "Log in to save a personal travel style.",
+      loginRequired: "Log in to save your personal profile.",
     },
     moodForm: {
       heading: "Where does your heart want to wander?",
@@ -54,11 +54,10 @@
       loading: "Reading your mood...",
       loadingHint:
         "The AI is composing your clue — this can take a few minutes, thanks for your patience.",
-      personalizationHint: "Want sharper recommendations? Set up your travel style →",
+      personalizationHint: "Want sharper recommendations? Tell us about yourself →",
     },
     recommendation: {
       clueLabel: "Your metaphorical clue",
-      avoidSummaryLabel: "You'd rather avoid",
       mapTitle: "Approximate mood map",
       spotsHeading: "Spots that match your feeling",
       continuationHeading: "Where to next on this trip?",
@@ -71,7 +70,8 @@
         "We couldn't find a strong place match yet. Try describing your mood with a little more detail.",
       allVisited:
         "You've visited every spot we recommended for this mood. Time to wrap up the trip!",
-      avoidWarningPrefix: "Heads up:",
+      sourceDisclaimer:
+        "These are candidate places the AI found from public web sources. Please confirm current hours, access, and safety yourself before visiting.",
     },
     postcardCreator: {
       heading: "After you visit, how was it?",
@@ -119,7 +119,16 @@
       shared: "Shared.",
       footer: "Shared from MoodTrip",
       blankPostcardHint: "A blank postcard form with this trip image on the front.",
-      caption: ({ city, place }) => `${city} / ${place}\n\nShared from MoodTrip`,
+      caption: ({ city, place, moodText, clue, review }) =>
+        [
+          `${city} / ${place}`,
+          moodText && `Mood: ${moodText}`,
+          clue && `"${clue}"`,
+          review && `"${review}"`,
+          "Shared from MoodTrip",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
     },
     postcardArrived: "Your postcard has arrived ✉",
     finalPostcard: {
@@ -140,7 +149,6 @@
       finalPostcard:
         "We couldn't create your final trip postcard within 90 seconds. Please try again.",
     },
-    tagLabels: {},
   },
   ko: {
     appTitle: "MoodTrip",
@@ -175,15 +183,15 @@
       postcardLoginPrompt: "방문 기록을 엽서로 남길 준비가 되면 로그인해주세요.",
     },
     personalization: {
-      heading: "나의 여행 스타일",
+      heading: "나의 성향",
       subheading:
-        "선호하거나 피하고 싶은 장소, 분위기, 상황을 몇 문장으로 적어주세요. 로그인 상태에서 감정 검색을 할 때마다 함께 참고할게요.",
+        "당신이 어떤 사람인지 자유롭게 적어주세요. 성격, 좋아하는 것과 싫어하는 것, 평소 어떤 상황에서 어떤 기분을 느끼는지 같은 걸 알려주시면, 로그인 상태에서 감정 검색을 할 때마다 함께 참고할게요.",
       placeholder:
-        "조용한 강변 산책이나 카페, 오래된 골목처럼 잠시 머물 수 있는 곳을 좋아해요. 사람 많고 관광지스러운 곳, 긴 대기는 피하고 싶어요...",
-      save: "내 스타일 저장하기",
+        "저는 내향적이고 조용하고 느긋한 곳을 좋아해요. 사람 많은 곳에 있으면 금방 지치지만, 예상 못한 걸 발견하는 건 좋아해요. 오래된 것들이나 은은한 빛, 잔잔한 분위기에 끌리는 편이에요...",
+      save: "내 성향 저장하기",
       saving: "저장하는 중...",
       saved: "저장했어요! 다음 감정 검색부터 반영됩니다.",
-      loginRequired: "나만의 여행 스타일을 저장하려면 로그인해주세요.",
+      loginRequired: "나만의 성향을 저장하려면 로그인해주세요.",
     },
     moodForm: {
       heading: "당신의 마음은 지금 어디로 향하고 있나요?",
@@ -197,11 +205,10 @@
       loading: "기분을 읽는 중...",
       loadingHint:
         "AI가 단서를 만들고 있어요 — 몇 분 정도 걸릴 수 있으니 잠시만 기다려주세요.",
-      personalizationHint: "더 정확한 추천을 원하시나요? 내 여행 스타일 설정하기 →",
+      personalizationHint: "더 정확한 추천을 원하시나요? 내 성향 알려주기 →",
     },
     recommendation: {
       clueLabel: "당신을 위한 은유적 단서",
-      avoidSummaryLabel: "피하고 싶은 것",
       mapTitle: "대략적인 위치",
       spotsHeading: "지금 기분과 어울리는 장소",
       continuationHeading: "다음 정거장은 어디로 가볼까요?",
@@ -213,7 +220,8 @@
       noMatches:
         "아직 강하게 맞는 장소를 찾지 못했어요. 기분을 조금 더 자세히 적어 다시 시도해보세요.",
       allVisited: "이 기분에 추천된 장소를 모두 다녀오셨어요! 여행을 마무리해보세요.",
-      avoidWarningPrefix: "참고:",
+      sourceDisclaimer:
+        "AI가 공개 웹 정보를 바탕으로 찾은 장소 후보예요. 방문 전 운영 시간, 접근성, 안전 정보는 꼭 직접 확인해주세요.",
     },
     postcardCreator: {
       heading: "다녀온 뒤, 어떠셨나요?",
@@ -258,12 +266,21 @@
       shared: "공유했어요.",
       footer: "MoodTrip에서 공유",
       blankPostcardHint: "앞면에는 여정 이미지, 뒷면에는 빈 엽서 양식이 있는 카드예요.",
-      caption: ({ city, place }) => `${city} / ${place}\n\nMoodTrip에서 공유`,
+      caption: ({ city, place, moodText, clue, review }) =>
+        [
+          `${city} / ${place}`,
+          moodText && `오늘의 기분: ${moodText}`,
+          clue && `"${clue}"`,
+          review && `"${review}"`,
+          "MoodTrip에서 공유",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
     },
     postcardArrived: "엽서가 도착했어요 ✉",
     finalPostcard: {
       heading: "최종 여정 엽서가 완성됐어요",
-      subheading: "이미지에 담기길 원하는 장면이나 느낌을 적어주세요. 사진이 있으면 엽서 앞면에 활용할게요.",
+      subheading: "이번 여정의 모든 엽서를 하나의 완전한 기억으로 모았어요.",
       loading: "엽서를 만드는 중...",
     },
     findNextStop: "다음 정거장 찾기 →",
@@ -274,46 +291,6 @@
       analyze: "90초 안에 기분을 분석하지 못했어요. 다시 시도해주세요.",
       postcard: "90초 안에 엽서를 만들지 못했어요. 다시 시도해주세요.",
       finalPostcard: "90초 안에 최종 엽서를 만들지 못했어요. 다시 시도해주세요.",
-    },
-    tagLabels: {
-      adventurous: "모험적인",
-      "awe-struck": "경이로운",
-      calm: "차분한",
-      contemplative: "사색적인",
-      content: "만족스러운",
-      cozy: "아늑한",
-      curious: "호기심 있는",
-      dreamy: "몽환적인",
-      elegant: "우아한",
-      energetic: "활기찬",
-      excited: "신나는",
-      "free-spirited": "자유로운",
-      futuristic: "미래적인",
-      grounded: "안정적인",
-      hopeful: "희망적인",
-      inspired: "영감 있는",
-      introspective: "성찰적인",
-      joyful: "즐거운",
-      leisurely: "여유로운",
-      lively: "활기찬",
-      melancholy: "쓸쓸한",
-      nostalgic: "그리운",
-      peaceful: "평화로운",
-      playful: "장난스러운",
-      quiet: "조용한",
-      reflective: "생각이 깊은",
-      refreshing: "상쾌한",
-      relaxed: "느긋한",
-      restorative: "회복되는",
-      romantic: "로맨틱한",
-      scenic: "풍경 좋은",
-      serene: "고요한",
-      "slow-paced": "느린",
-      social: "사교적인",
-      solitary: "혼자 있기 좋은",
-      stylish: "세련된",
-      timeless: "시간을 잊는",
-      urban: "도시적인",
     },
   },
 };

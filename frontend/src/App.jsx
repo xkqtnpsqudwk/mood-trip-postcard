@@ -98,6 +98,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState("create");
   const [step, setStep] = useState("form");
   const [city, setCity] = useState("");
+  const [moodText, setMoodText] = useState("");
   const [analyzeResult, setAnalyzeResult] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [createdPostcard, setCreatedPostcard] = useState(null);
@@ -131,6 +132,7 @@ function AppContent() {
     setVisitedPlaceIds([]);
     setLastPostcardId(null);
     setFinalTripPostcard(null);
+    setMoodText("");
   };
 
   const handleMoodSubmit = async (formState) => {
@@ -140,6 +142,7 @@ function AppContent() {
       const location = await getUserLocation();
       const result = await analyzeMood({ ...formState, language: lang, ...location });
       setCity(formState.city);
+      setMoodText(formState.moodText);
       setAnalyzeResult(result);
       setTripId(crypto.randomUUID());
       setVisitedPlaceIds([]);
@@ -166,7 +169,9 @@ function AppContent() {
         review,
         lang,
         tripId,
-        photoBase64List
+        photoBase64List,
+        moodText,
+        analyzeResult?.clue
       );
       if (lastPostcardId) {
         try {

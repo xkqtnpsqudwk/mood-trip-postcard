@@ -4,7 +4,6 @@ import math
 import sqlite3
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -121,11 +120,6 @@ class LocalizedText(BaseModel):
     ko: str
 
 
-class LocalizedTag(BaseModel):
-    en: str
-    ko: str
-
-
 class MapPosition(BaseModel):
     x: float
     y: float
@@ -144,16 +138,13 @@ class PlaceOut(BaseModel):
     duration_label_i18n: LocalizedText
     reason: str = ""
     reason_i18n: LocalizedText
-    avoid_warnings: list[str] = []
-    avoid_warning_i18n: LocalizedText
+    intensity_level: str = "MEDIUM"
     map_position: MapPosition
     distance_km: float | None = None
 
 
 class AnalyzeResponse(BaseModel):
     clue: LocalizedText
-    tags: list[LocalizedTag]
-    avoid_tags: list[LocalizedTag] = []
     places: list[PlaceOut]
 
 
@@ -167,6 +158,9 @@ class PostcardRequest(BaseModel):
     trip_id: str | None = None
     image_base64: str | None = None
     photo_base64_list: list[str] = []
+    mood_text: str = ""
+    clue_en: str = ""
+    clue_ko: str = ""
 
 
 class NextPlaceRequest(BaseModel):
@@ -193,6 +187,8 @@ class PostcardOut(BaseModel):
     trip_id: str
     next_place_name: str | None = None
     next_place_name_i18n: LocalizedText | None = None
+    mood_text: str = ""
+    clue_i18n: LocalizedText | None = None
 
 
 def get_current_user(authorization: str | None = Header(default=None)) -> sqlite3.Row | None:
@@ -276,9 +272,6 @@ def _row_value(row: sqlite3.Row, field: str, default: str = "") -> str:
     return value or default
 
 
-FAR_DISTANCE_KM = 5.0
-
-
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     earth_radius_km = 6371.0
     lat1_rad, lat2_rad = math.radians(lat1), math.radians(lat2)
@@ -300,18 +293,12 @@ def _place_out(
     user_lng: float | None = None,
 ) -> PlaceOut:
     duration_code = place["duration"]
-    avoid_code = place["avoid_warning"]
 
     distance_km = None
     if user_lat is not None and user_lng is not None:
         coordinates = place["coordinates"]
         distance_km = _haversine_km(user_lat, user_lng, coordinates["lat"], coordinates["lng"])
-        # Real distance from the traveler's current location beats the
-        # model's own guess about what counts as "far" for this trip.
-        if distance_km > FAR_DISTANCE_KM:
-            avoid_code = "far"
 
-    avoid_codes = [avoid_code] if avoid_code else []
     return PlaceOut(
         id=index,
         city=city,
@@ -328,11 +315,7 @@ def _place_out(
         ),
         reason=place["reason"]["ko" if language == "ko" else "en"],
         reason_i18n=LocalizedText(**place["reason"]),
-        avoid_warnings=tags.labels(tags.AVOID, avoid_codes, language),
-        avoid_warning_i18n=LocalizedText(
-            en=", ".join(tags.labels(tags.AVOID, avoid_codes, "en")),
-            ko=", ".join(tags.labels(tags.AVOID, avoid_codes, "ko")),
-        ),
+        intensity_level=place["intensity_level"],
         map_position=MapPosition(**place["map_position"]),
         distance_km=round(distance_km, 1) if distance_km is not None else None,
     )
@@ -361,6 +344,10 @@ def _row_to_postcard(row: sqlite3.Row, language: str = "en") -> PostcardOut:
             next_place_name_i18n.ko if language == "ko" else next_place_name_i18n.en
         )
 
+    clue_en = _row_value(row, "clue_en")
+    clue_ko = _row_value(row, "clue_ko")
+    clue_i18n = LocalizedText(en=clue_en, ko=clue_ko or clue_en) if clue_en else None
+
     return PostcardOut(
         id=row["id"],
         city=row["city"],
@@ -376,12 +363,9 @@ def _row_to_postcard(row: sqlite3.Row, language: str = "en") -> PostcardOut:
         trip_id=_row_value(row, "trip_id"),
         next_place_name=next_place_name,
         next_place_name_i18n=next_place_name_i18n,
+        mood_text=_row_value(row, "mood_text"),
+        clue_i18n=clue_i18n,
     )
-
-
-def _tag_out(vocab: dict, code: str) -> LocalizedTag:
-    entry = vocab.get(code, {"en": code, "ko": code})
-    return LocalizedTag(en=entry.get("en", code), ko=entry.get("ko", code))
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
@@ -406,8 +390,6 @@ def analyze(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI recommendation failed: {exc}") from exc
 
-    combined_tags = [LocalizedTag(en=t["en"], ko=t["ko"]) for t in recommendation["tags"]]
-    avoid_tag_out = [_tag_out(tags.AVOID, code) for code in recommendation["avoid"]]
     places_out = [
         _place_out(
             index,
@@ -422,8 +404,6 @@ def analyze(
 
     return AnalyzeResponse(
         clue=recommendation["clue"],
-        tags=combined_tags,
-        avoid_tags=avoid_tag_out,
         places=places_out,
     )
 
@@ -471,6 +451,9 @@ def create_postcard(
         title_ko="",
         message_ko="",
         user_id=user["id"],
+        mood_text=payload.mood_text,
+        clue_en=payload.clue_en,
+        clue_ko=payload.clue_ko,
     )
     return _row_to_postcard(row, payload.language)
 
@@ -493,6 +476,9 @@ def update_postcard_next_place(
     )
     row = _ensure_postcard_image_file(row)
     return _row_to_postcard(row, language)
+
+
+_CITY_NAMES_KO = {"Paris": "파리", "Seoul": "서울"}
 
 
 @app.post("/api/trip/{trip_id}/final-postcard", response_model=PostcardOut)
@@ -531,31 +517,31 @@ def create_final_trip_postcard(
             status_code=502, detail=f"Final postcard generation failed: {exc}"
         ) from exc
 
-    place_name_i18n = LocalizedText(en=f"{city} Trip", ko=f"{city} 여정")
-    return PostcardOut(
-        id=0,
+    place_name_en = f"{city} Trip"
+    place_name_ko = f"{_CITY_NAMES_KO.get(city, city)} 여정"
+    review_text = "\n".join(item["review"] for item in trip_items if item["review"])
+    image_path = _save_postcard_image(generated["image_base64"])
+
+    # Persisted like any other postcard (same trip_id) so the trip's closing
+    # memory survives a refresh and shows up in the archive instead of only
+    # existing for the one render right after "Finish this trip".
+    row = database.insert_postcard(
         city=city,
-        place_name=place_name_i18n.ko if payload.language == "ko" else place_name_i18n.en,
-        place_name_i18n=place_name_i18n,
-        title=generated["title"]["ko"] if payload.language == "ko" else generated["title"]["en"],
-        message=generated["message"]["ko"]
-        if payload.language == "ko"
-        else generated["message"]["en"],
-        title_i18n=LocalizedText(
-            en=generated["title"]["en"],
-            ko=generated["title"]["ko"],
-        ),
-        message_i18n=LocalizedText(
-            en=generated["message"]["en"],
-            ko=generated["message"]["ko"],
-        ),
-        review="\n".join(item["review"] for item in trip_items if item["review"]),
-        image_url=f"/uploads/{_save_postcard_image(generated['image_base64'])}",
-        created_at=datetime.utcnow().isoformat(),
+        place_name=place_name_en,
+        place_name_en=place_name_en,
+        place_name_ko=place_name_ko,
+        title="",
+        message="",
+        review=review_text,
         trip_id=trip_id,
-        next_place_name=None,
-        next_place_name_i18n=None,
+        image_path=image_path,
+        title_en="",
+        message_en="",
+        title_ko="",
+        message_ko="",
+        user_id=user["id"],
     )
+    return _row_to_postcard(row, payload.language)
 
 
 @app.get("/api/archive", response_model=list[PostcardOut])
