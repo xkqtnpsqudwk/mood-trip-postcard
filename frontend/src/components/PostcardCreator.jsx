@@ -65,7 +65,7 @@ export default function PostcardCreator({ place, city, onSubmit, onCancel, isLoa
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-xl rounded-3xl bg-white/75 p-6 shadow-[0_25px_60px_-15px_rgba(251,113,133,0.35)] ring-1 ring-white/70 backdrop-blur sm:p-8 dark:bg-zinc-950/70 dark:shadow-[0_24px_60px_-24px_rgba(217,70,239,0.45)] dark:ring-fuchsia-500/20"
+      className="mx-auto w-full max-w-xl rounded-3xl bg-white/80 p-6 shadow-[0_25px_60px_-15px_rgba(251,113,133,0.35)] ring-1 ring-rose-100/80 backdrop-blur sm:p-8 dark:bg-zinc-950/70 dark:shadow-[0_24px_60px_-24px_rgba(217,70,239,0.42)] dark:ring-fuchsia-500/20"
     >
       <p className="text-xs font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-300">
         {t.cities[city] ?? city} &middot; {placeName}
@@ -92,7 +92,7 @@ export default function PostcardCreator({ place, city, onSubmit, onCancel, isLoa
         <p className="mt-1 text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
           {t.postcardCreator.photoHint}
         </p>
-        <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-rose-200 bg-rose-50/50 px-4 py-5 text-center text-sm text-rose-500 transition hover:bg-rose-50 dark:border-cyan-500/30 dark:bg-cyan-950/10 dark:text-cyan-300 dark:hover:bg-cyan-950/20">
+        <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-rose-200 bg-rose-50/50 px-4 py-5 text-center text-sm text-rose-500 transition hover:bg-rose-50 dark:border-fuchsia-500/30 dark:bg-fuchsia-950/15 dark:text-fuchsia-200 dark:hover:bg-fuchsia-950/25">
           <span>{t.postcardCreator.photoButton}</span>
           <input
             type="file"

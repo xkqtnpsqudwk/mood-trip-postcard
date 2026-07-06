@@ -70,7 +70,7 @@ async function downloadShareImage({ postcard, placeName, cityName, clue, review,
   const gradient = context.createLinearGradient(0, 0, 1080, 1350);
   gradient.addColorStop(0, "#fff1f2");
   gradient.addColorStop(0.55, "#ffffff");
-  gradient.addColorStop(1, "#e0f2fe");
+  gradient.addColorStop(1, "#fce7f3");
   context.fillStyle = gradient;
   context.fillRect(0, 0, 1080, 1350);
 
@@ -214,26 +214,26 @@ export default function SharePanel({ postcard, compact = false }) {
 
   return (
     <section
-      className={`rounded-2xl border border-rose-100 bg-white/90 p-4 shadow-sm dark:border-cyan-500/20 dark:bg-zinc-950/80 ${
+      className={`rounded-2xl border border-rose-100 bg-white/90 p-4 shadow-sm dark:border-fuchsia-500/20 dark:bg-zinc-950/80 ${
         compact ? "mt-4" : "mt-5"
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-rose-400 dark:text-cyan-300">
+          <p className="text-xs font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-300">
             {t.share.label}
           </p>
           <h3 className="mt-1 text-sm font-semibold text-stone-800 dark:text-zinc-100">
             {t.share.heading}
           </h3>
         </div>
-        <span className="rounded-full bg-violet-50 px-3 py-1 text-[11px] font-medium text-violet-500 dark:bg-cyan-950/50 dark:text-cyan-300">
+        <span className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-500 dark:bg-fuchsia-950/50 dark:text-fuchsia-200">
           MoodTrip
         </span>
       </div>
 
-      <div className="mt-3 rounded-xl bg-gradient-to-br from-rose-50 via-white to-cyan-50 p-4 text-left ring-1 ring-rose-100 dark:from-zinc-900 dark:via-zinc-950 dark:to-cyan-950/40 dark:ring-cyan-500/20">
-        <p className="text-[11px] font-medium text-violet-500 dark:text-cyan-300">
+      <div className="mt-3 rounded-xl bg-gradient-to-br from-rose-50 via-white to-pink-50 p-4 text-left ring-1 ring-rose-100 dark:from-zinc-900 dark:via-zinc-950 dark:to-fuchsia-950/40 dark:ring-fuchsia-500/20">
+        <p className="text-[11px] font-medium text-rose-500 dark:text-fuchsia-300">
           {shareData.cityName} · {shareData.placeName}
         </p>
         <p className="mt-2 break-keep font-[family-name:var(--font-display)] text-lg leading-snug text-stone-800 dark:text-zinc-100">
@@ -248,7 +248,7 @@ export default function SharePanel({ postcard, compact = false }) {
         <button
           type="button"
           onClick={handleDownload}
-          className="rounded-xl bg-rose-400 px-4 py-2 text-xs font-medium text-white shadow-[0_8px_18px_-6px_rgba(251,113,133,0.6)] transition hover:bg-rose-500 dark:bg-cyan-500 dark:hover:bg-cyan-400"
+          className="rounded-xl bg-rose-400 px-4 py-2 text-xs font-medium text-white shadow-[0_8px_18px_-6px_rgba(251,113,133,0.6)] transition hover:bg-rose-500 dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400"
         >
           {t.share.download}
         </button>

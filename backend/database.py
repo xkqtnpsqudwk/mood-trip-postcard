@@ -51,6 +51,7 @@ def init_db() -> None:
         "mood_text TEXT",
         "clue_en TEXT",
         "clue_ko TEXT",
+        "artifact_type TEXT NOT NULL DEFAULT 'record'",
     ):
         try:
             cursor.execute(f"ALTER TABLE postcards ADD COLUMN {column}")
@@ -131,6 +132,7 @@ def insert_postcard(
     mood_text: str | None = None,
     clue_en: str | None = None,
     clue_ko: str | None = None,
+    artifact_type: str = "record",
 ) -> sqlite3.Row:
     conn = get_connection()
     cursor = conn.execute(
@@ -139,9 +141,9 @@ def insert_postcard(
             city, place_name, title, message, review, image_base64, image_path,
             place_name_en, place_name_ko, title_en, message_en, title_ko, message_ko,
             next_place_name_en, next_place_name_ko, trip_id,
-            user_id, mood_text, clue_en, clue_ko
+            user_id, mood_text, clue_en, clue_ko, artifact_type
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             city,
@@ -164,6 +166,7 @@ def insert_postcard(
             mood_text,
             clue_en,
             clue_ko,
+            artifact_type,
         ),
     )
     conn.commit()
@@ -236,6 +239,20 @@ def get_postcards_by_trip(trip_id: str, user_id: int) -> list[sqlite3.Row]:
         """
         SELECT * FROM postcards
         WHERE trip_id = ? AND user_id = ?
+        ORDER BY created_at ASC, id ASC
+        """,
+        (trip_id, user_id),
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_records_by_trip(trip_id: str, user_id: int) -> list[sqlite3.Row]:
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT * FROM postcards
+        WHERE trip_id = ? AND user_id = ? AND artifact_type = 'record'
         ORDER BY created_at ASC, id ASC
         """,
         (trip_id, user_id),

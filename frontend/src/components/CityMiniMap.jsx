@@ -22,7 +22,7 @@ export default function CityMiniMap({ places, activePlaceId, onHover, onSelectMa
   if (!map) return null;
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white/75 p-4 shadow-sm ring-1 ring-white/70 dark:border-zinc-800 dark:bg-zinc-900/55 dark:ring-fuchsia-500/15">
+    <div className="rounded-2xl border border-rose-100 bg-white/80 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-fuchsia-500/20 dark:bg-zinc-950/60 dark:ring-fuchsia-500/15">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-300">
           {t.recommendation.mapTitle}
@@ -56,8 +56,8 @@ export default function CityMiniMap({ places, activePlaceId, onHover, onSelectMa
                 title={localized(place.name_i18n, lang) || place.name}
                 className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[10px] font-semibold transition ${
                   isActive
-                    ? "h-6 w-6 bg-fuchsia-400 text-white shadow-[0_0_18px_rgba(217,70,239,0.75)] ring-2 ring-white/80 dark:bg-cyan-300 dark:text-zinc-950 dark:ring-cyan-100/70"
-                    : "h-5 w-5 bg-rose-400 text-white shadow-[0_0_10px_rgba(251,113,133,0.45)] ring-2 ring-white/75 dark:bg-fuchsia-400 dark:ring-zinc-950/70"
+                    ? "h-6 w-6 bg-rose-500 text-white shadow-[0_0_18px_rgba(244,63,94,0.55)] ring-2 ring-white/80 dark:bg-fuchsia-300 dark:text-zinc-950 dark:ring-fuchsia-100/70"
+                    : "h-5 w-5 bg-rose-400 text-white shadow-[0_0_10px_rgba(251,113,133,0.45)] ring-2 ring-white/75 dark:bg-fuchsia-500 dark:ring-zinc-950/70"
                 }`}
                 style={{ left: `${position.x}%`, top: `${position.y}%` }}
               >

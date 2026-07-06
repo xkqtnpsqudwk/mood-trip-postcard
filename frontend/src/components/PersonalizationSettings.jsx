@@ -35,7 +35,7 @@ export default function PersonalizationSettings() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-3xl bg-white/70 p-6 shadow-[0_25px_60px_-15px_rgba(244,114,182,0.4)] ring-1 ring-white/60 backdrop-blur sm:p-8 dark:bg-zinc-900/60 dark:shadow-[0_0_40px_rgba(168,85,247,0.15)] dark:ring-fuchsia-500/20">
+    <div className="mx-auto w-full max-w-xl rounded-3xl bg-white/80 p-6 shadow-[0_25px_60px_-15px_rgba(244,114,182,0.35)] ring-1 ring-rose-100/80 backdrop-blur sm:p-8 dark:bg-zinc-950/65 dark:shadow-[0_0_40px_rgba(217,70,239,0.14)] dark:ring-fuchsia-500/20">
       <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-800 dark:text-zinc-100">
         {p.heading}
       </h2>

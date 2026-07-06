@@ -13,9 +13,8 @@ import { ThemeProvider, useTheme } from "./ThemeContext";
 import { AuthProvider, useAuth } from "./AuthContext";
 import {
   analyzeMood,
+  createMomentRecord,
   createFinalTripPostcard,
-  createPostcard,
-  updatePostcardNextPlace,
 } from "./api";
 
 // Best-effort: lets recommendations flag genuinely far places for where the
@@ -69,7 +68,7 @@ function AccountControl({ onLoginClick }) {
 
   if (user) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-full bg-white/70 py-1 pl-3 pr-1 text-xs font-medium shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
+      <div className="inline-flex items-center gap-2 rounded-full bg-white/80 py-1 pl-3 pr-1 text-xs font-medium shadow-md ring-1 ring-rose-100/80 dark:bg-zinc-950/70 dark:shadow-none dark:ring-fuchsia-500/20">
         <span className="text-stone-500 dark:text-zinc-400">{user.username}</span>
         <button
           onClick={logout}
@@ -84,7 +83,7 @@ function AccountControl({ onLoginClick }) {
   return (
     <button
       onClick={onLoginClick}
-      className="rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-stone-500 shadow-md ring-1 ring-white/60 hover:text-stone-700 dark:bg-zinc-900/70 dark:text-zinc-400 dark:ring-fuchsia-500/20 dark:hover:text-zinc-200"
+      className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-stone-500 shadow-md ring-1 ring-rose-100/80 hover:text-stone-700 dark:bg-zinc-950/70 dark:text-zinc-400 dark:ring-fuchsia-500/20 dark:hover:text-zinc-200"
     >
       {t.auth.loginHeading}
     </button>
@@ -101,15 +100,14 @@ function AppContent() {
   const [moodText, setMoodText] = useState("");
   const [analyzeResult, setAnalyzeResult] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
-  const [createdPostcard, setCreatedPostcard] = useState(null);
+  const [createdRecord, setCreatedRecord] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isCreatingPostcard, setIsCreatingPostcard] = useState(false);
+  const [isCreatingRecord, setIsCreatingRecord] = useState(false);
   const [isFinalizingTrip, setIsFinalizingTrip] = useState(false);
   const [error, setError] = useState(null);
   const [archiveRefreshKey, setArchiveRefreshKey] = useState(0);
   const [tripId, setTripId] = useState(null);
   const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
-  const [lastPostcardId, setLastPostcardId] = useState(null);
   const [finalTripPostcard, setFinalTripPostcard] = useState(null);
 
   useEffect(() => {
@@ -126,11 +124,10 @@ function AppContent() {
     setStep("form");
     setAnalyzeResult(null);
     setSelectedPlace(null);
-    setCreatedPostcard(null);
+    setCreatedRecord(null);
     setError(null);
     setTripId(null);
     setVisitedPlaceIds([]);
-    setLastPostcardId(null);
     setFinalTripPostcard(null);
     setMoodText("");
   };
@@ -144,8 +141,7 @@ function AppContent() {
       setCity(formState.city);
       setMoodText(formState.moodText);
       setAnalyzeResult(result);
-      setTripId(crypto.randomUUID());
-      setVisitedPlaceIds([]);
+      setTripId((currentTripId) => currentTripId || crypto.randomUUID());
       setStep("recommend");
     } catch {
       setError(t.errors.analyze);
@@ -161,9 +157,9 @@ function AppContent() {
 
   const handleReviewSubmit = async (review, photoBase64List = null) => {
     setError(null);
-    setIsCreatingPostcard(true);
+    setIsCreatingRecord(true);
     try {
-      const postcard = await createPostcard(
+      const record = await createMomentRecord(
         city,
         selectedPlace,
         review,
@@ -173,35 +169,33 @@ function AppContent() {
         moodText,
         analyzeResult?.clue
       );
-      if (lastPostcardId) {
-        try {
-          // Now that we know where the traveler actually went next, backfill
-          // the previous postcard's next-stop instead of showing a guess.
-          await updatePostcardNextPlace(lastPostcardId, selectedPlace, lang);
-        } catch {
-          // Best-effort: the previous postcard just won't show a next stop.
-        }
-      }
-      setCreatedPostcard(postcard);
-      setLastPostcardId(postcard.id);
+      setCreatedRecord(record);
       setVisitedPlaceIds((ids) => [...ids, selectedPlace.id]);
-      setStep("postcard");
+      setStep("record");
       setArchiveRefreshKey((key) => key + 1);
     } catch {
-      setError(t.errors.postcard);
+      setError(t.errors.record);
     } finally {
-      setIsCreatingPostcard(false);
+      setIsCreatingRecord(false);
     }
   };
 
   const handleContinueTrip = () => {
     setSelectedPlace(null);
-    setCreatedPostcard(null);
-    setStep("recommend");
+    setCreatedRecord(null);
+    setAnalyzeResult(null);
+    setMoodText("");
+    setStep("form");
   };
 
   const handleEndTrip = async () => {
     if (!tripId) {
+      resetFlow();
+      setActiveTab("archive");
+      return;
+    }
+
+    if (visitedPlaceIds.length === 0) {
       resetFlow();
       setActiveTab("archive");
       return;
@@ -212,7 +206,7 @@ function AppContent() {
     try {
       const finalPostcard = await createFinalTripPostcard(tripId, lang);
       setFinalTripPostcard(finalPostcard);
-      setCreatedPostcard(null);
+      setCreatedRecord(null);
       setSelectedPlace(null);
       setStep("tripFinale");
       setActiveTab("create");
@@ -223,34 +217,35 @@ function AppContent() {
     }
   };
 
-  const handleDismissRecommendations = () => {
-    resetFlow();
-    setView("landing");
-  };
-
-  const hasRemainingStops = (analyzeResult?.places || []).some(
-    (place) => !visitedPlaceIds.includes(place.id)
-  );
-
   if (view === "landing") {
     return (
       <div className="flex min-h-dvh items-center justify-center px-4 py-10">
-        <Landing onContinue={() => setView("app")} />
+        <Landing
+          onContinue={() => {
+            setView("app");
+            setActiveTab("personalization");
+          }}
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh px-4 py-6 sm:py-10">
-      <header className="mx-auto max-w-3xl text-center sm:relative">
-        <div className="flex items-center justify-between sm:block">
-          <p className="neon-text text-xs font-semibold uppercase tracking-[0.2em] text-rose-400 sm:tracking-[0.3em] dark:text-fuchsia-400">
+    <div className="min-h-dvh px-4 py-6 sm:px-6 sm:py-10">
+      <header className="mx-auto w-full max-w-7xl text-center">
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
+          <p className="neon-text justify-self-start text-xs font-semibold uppercase tracking-[0.2em] text-rose-400 sm:tracking-[0.3em] dark:text-fuchsia-400">
             {t.appTitle}
           </p>
-          <div className="flex items-center gap-2 sm:absolute sm:right-0 sm:-top-2">
+          <div className="order-3 justify-self-center sm:order-none sm:col-start-2">
+            <h1 className="neon-text font-[family-name:var(--font-display)] text-3xl text-stone-800 sm:text-4xl dark:text-zinc-100">
+              {t.appSubtitle}
+            </h1>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2 justify-self-end">
             <AccountControl onLoginClick={() => setActiveTab("personalization")} />
             <ThemeToggle />
-            <div className="inline-flex rounded-full bg-white/70 p-1 text-xs font-medium shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
+            <div className="inline-flex rounded-full bg-white/80 p-1 text-xs font-medium shadow-md ring-1 ring-rose-100/80 dark:bg-zinc-950/70 dark:shadow-none dark:ring-fuchsia-500/20">
               {["ko", "en"].map((code) => (
                 <button
                   key={code}
@@ -268,15 +263,12 @@ function AppContent() {
           </div>
         </div>
 
-        <h1 className="neon-text mt-5 font-[family-name:var(--font-display)] text-3xl text-stone-800 sm:mt-6 sm:text-4xl dark:text-zinc-100">
-          {t.appSubtitle}
-        </h1>
-        <nav className="mt-7 inline-flex rounded-full bg-white/70 p-1 shadow-md ring-1 ring-white/60 dark:bg-zinc-900/70 dark:shadow-none dark:ring-fuchsia-500/20">
+        <nav className="mt-7 inline-flex max-w-full overflow-x-auto rounded-full bg-white/80 p-1 shadow-md ring-1 ring-rose-100/80 dark:bg-zinc-950/70 dark:shadow-none dark:ring-fuchsia-500/20">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+              className={`shrink-0 rounded-full px-5 py-2 text-sm font-medium transition ${
                 activeTab === tab.id
                   ? "bg-rose-400 text-white shadow-[0_6px_16px_-2px_rgba(251,113,133,0.55)] dark:bg-fuchsia-500 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
                   : "text-stone-500 hover:text-stone-700 dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -288,7 +280,7 @@ function AppContent() {
         </nav>
       </header>
 
-      <main className="mt-8 sm:mt-10">
+      <main className="mx-auto mt-8 w-full max-w-7xl sm:mt-10">
         {error && (
           <p className="mx-auto mb-6 w-full max-w-xl rounded-xl bg-rose-50 px-4 py-3 text-center text-sm text-rose-500 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 dark:ring-1 dark:ring-fuchsia-500/30">
             {error}
@@ -307,14 +299,12 @@ function AppContent() {
             {step === "recommend" && (
               <RecommendationView
                 result={analyzeResult}
-                visitedPlaceIds={visitedPlaceIds}
                 isContinuation={visitedPlaceIds.length > 0}
                 requireLogin={!user}
                 onSelectPlace={handleSelectPlace}
-                onStartOver={resetFlow}
+                onStartOver={handleContinueTrip}
                 onEndTrip={handleEndTrip}
                 isEndingTrip={isFinalizingTrip}
-                onDismiss={handleDismissRecommendations}
               />
             )}
             {step === "loginRequired" && selectedPlace && (
@@ -337,34 +327,32 @@ function AppContent() {
                 city={city}
                 onSubmit={handleReviewSubmit}
                 onCancel={() => setStep("recommend")}
-                isLoading={isCreatingPostcard}
+                isLoading={isCreatingRecord}
               />
             )}
-            {step === "postcard" && createdPostcard && (
+            {step === "record" && createdRecord && (
               <div className="mx-auto w-full max-w-md">
                 <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
-                  {t.postcardArrived}
+                  {t.recordSaved}
                 </p>
-                <Postcard postcard={createdPostcard} defaultFlipped={false} />
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
-                  {hasRemainingStops && (
-                    <button
-                      onClick={handleContinueTrip}
-                      className="rounded-xl bg-rose-400 px-5 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
-                    >
-                      {t.findNextStop}
-                    </button>
-                  )}
+                <Postcard postcard={createdRecord} defaultFlipped={false} />
+                <div className="mx-auto mt-6 grid w-full max-w-xl gap-3 sm:grid-cols-3">
+                  <button
+                    onClick={handleContinueTrip}
+                    className="rounded-xl bg-rose-400 px-4 py-2.5 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
+                  >
+                    {t.findNextStop}
+                  </button>
                   <button
                     onClick={handleEndTrip}
                     disabled={isFinalizingTrip}
-                    className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
                   >
                     {isFinalizingTrip ? t.finalPostcard.loading : t.endTrip}
                   </button>
                   <button
                     onClick={resetFlow}
-                    className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
                   >
                     {t.planAnother}
                   </button>
@@ -381,19 +369,19 @@ function AppContent() {
                 </p>
                 <Postcard postcard={finalTripPostcard} defaultFlipped={false} />
                 <SharePanel postcard={finalTripPostcard} compact />
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <div className="mx-auto mt-6 grid w-full max-w-md gap-3 sm:grid-cols-2">
                   <button
                     onClick={() => {
                       resetFlow();
                       setActiveTab("archive");
                     }}
-                    className="rounded-xl border border-stone-200 px-5 py-2 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-500 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
                   >
                     {t.viewArchive}
                   </button>
                   <button
                     onClick={resetFlow}
-                    className="rounded-xl bg-rose-400 px-5 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
+                    className="rounded-xl bg-rose-400 px-4 py-2.5 text-sm font-medium text-white shadow-[0_8px_20px_-4px_rgba(251,113,133,0.5)] transition hover:bg-rose-500 hover:shadow-[0_8px_24px_-2px_rgba(251,113,133,0.65)] dark:bg-fuchsia-500 dark:hover:bg-fuchsia-400 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
                   >
                     {t.planAnother}
                   </button>

@@ -1,4 +1,4 @@
-"""OpenAI-backed AI helpers for mood analysis, postcard text, and images."""
+"""OpenAI-backed AI helpers for mood analysis, recommendations, and images."""
 import base64
 import json
 import os
@@ -120,33 +120,32 @@ def recommend_trip(
 ) -> dict:
     """Ask the model to recommend real places, grounded with web search.
 
-    Replaces the old fixed-catalog lookup: instead of ranking a seeded
-    `places` table, the model itself proposes 4-6 places in `city` that fit
-    the traveler's current mood and, if saved, their broader personality
-    profile. It's required to use the web_search tool to confirm each place
-    actually exists and is currently operating, rather than recommending
-    from parametric memory alone.
+    Replaces the old fixed-catalog lookup: the model proposes one real place
+    in `city` that fits the traveler's saved personality profile and current
+    mood tone. It's required to use the web_search tool to confirm the place
+    actually exists and is currently operating, rather than recommending from
+    parametric memory alone.
 
     Returns: {"clue": {"en", "ko"}, "places": [{"name": {...}, "type": {...},
               "description": {...}, "duration": str, "reason": {...},
               "intensity_level": "LOW"|"MEDIUM"|"HIGH", "map_position": {"x", "y"},
-              "coordinates": {"lat", "lng"}}, ...]}
+              "coordinates": {"lat", "lng"}}]}
     """
     client = _get_client()
     duration_vocab = ", ".join(tags.AVAILABLE_TIME.keys())
     instructions = (
         "You are an emotionally perceptive solo-travel companion. Given a city, "
         "the traveler's current mood, and (optionally) a free-text profile "
-        "they saved about themselves, recommend 4 to 6 real, currently-operating "
-        "places in that exact city. The saved profile describes who the "
+        "they saved about themselves, recommend exactly 1 real, currently-operating "
+        "place in that exact city. The saved profile describes who the "
         "traveler is broadly - personality, general likes/dislikes, how they "
         "tend to feel in different situations - not a literal list of travel "
         "preferences, so read it for the kind of person they are and infer "
         "what would suit them, rather than pattern-matching keywords. When "
         "the current mood and the saved profile point in different "
-        "directions, prioritize the current mood - it's what they feel right "
-        "now, and use the saved profile mainly to adjust intensity, pace, and "
-        "social exposure. Avoid shallow keyword matching: if they feel low "
+        "directions, use the saved profile as the primary basis for the place "
+        "choice, and use the current mood mainly to tune emotional framing, "
+        "pace, intensity, and social exposure. Avoid shallow keyword matching: if they feel low "
         "but their profile says they're extroverted, don't default to a "
         "quiet cafe - consider energetic but accessible places where they "
         "can borrow energy from a crowd; if they feel overstimulated but "
@@ -155,11 +154,8 @@ def recommend_trip(
         "being alone doesn't feel isolating (markets, riversides, "
         "bookstores, museums, parks); if they feel anxious, avoid chaotic "
         "picks unless their profile strongly suggests crowds feel like "
-        "comfort to them. Where it fits naturally, give the set some "
-        "emotional variety rather than five variations on the same idea - "
-        "for example a mix of something that answers the mood directly, "
-        "something that reflects their deeper personality, something with "
-        "sensory contrast, and something low-pressure and solo-friendly. "
+        "comfort to them. Since you are choosing only one place, make the "
+        "reason for that one choice specific and grounded in the saved profile. "
         "The traveler is solo by default. You MUST use the web_search "
         "tool to verify each place actually exists and is currently operating "
         "before including it - never rely on memory alone, and prefer "
@@ -167,7 +163,7 @@ def recommend_trip(
         "recommend places actually inside the named city itself, not "
         "neighboring towns or the wider metro area, unless the city name "
         "given explicitly refers to that broader region. "
-        "For each place, give a bilingual name/type/description/reason "
+        "For the place, give a bilingual name/type/description/reason "
         "(natural English and Korean), a duration code from this fixed list: "
         f"{duration_vocab}, an intensity_level of LOW, MEDIUM, or HIGH for "
         "how stimulating/energetic the place is, an approximate map_x/map_y "
@@ -175,12 +171,11 @@ def recommend_trip(
         "with 0,0 as northwest and 100,100 as southeast, and the place's "
         "real latitude/longitude (use web_search to find its actual current "
         "coordinates - do not estimate from memory). After choosing the "
-        "places, also write one poetic metaphorical clue sentence (English "
+        "place, also write one poetic metaphorical clue sentence (English "
         "and Korean) that hints at today's mood AND subtly resonates with a "
-        "thread the places you chose share in common (a pace, texture, "
-        "color, or feeling) - it should read like a preview of what's "
+        "texture, color, or feeling of the selected place - it should read like a preview of what's "
         "ahead, not a generic mood note disconnected from the actual "
-        "recommendations. Vary the sentence's opening and structure every "
+        "recommendation. Vary the sentence's opening and structure every "
         "time; do not default to a fixed template like always starting "
         "with 'Today feels like...' or 'Follow...' - surprise with the "
         "phrasing itself. English text must use English only; Korean text "
@@ -260,10 +255,10 @@ def generate_postcard_image(
     message: str,
     source_images_base64: list[str] | None = None,
 ) -> str | None:
-    """Generate a postcard image and return base64-encoded image data.
+    """Generate a visit-moment image and return base64-encoded image data.
 
-    When source images are provided, OpenAI edits them into a travel postcard
-    collage. Otherwise, it generates a new postcard image from the user's note.
+    When source images are provided, OpenAI edits them into a travel-memory
+    collage. Otherwise, it generates a new image from the user's note.
 
     Raises on image-generation failure so the caller can ask the user to retry
     instead of silently saving an imageless postcard.
@@ -273,10 +268,10 @@ def generate_postcard_image(
 
     if source_images_base64:
         prompt = (
-            "Create a polished horizontal digital travel postcard collage "
+            "Create a polished horizontal digital travel memory collage "
             f"from the provided visit photos for {place_name} in {city}. "
             "Preserve the real photographed moments, arrange them like a "
-            "warm modern postcard, improve light and color gently, and do "
+            "warm modern travel record, improve light and color gently, and do "
             "not add any text, letters, captions, logos, or watermarks."
         )
         image_files = [
@@ -293,9 +288,9 @@ def generate_postcard_image(
         )
     else:
         prompt = (
-            f"A beautiful horizontal travel postcard photograph of {place_name} "
+            f"A beautiful horizontal travel memory photograph of {place_name} "
             f"in {city}, inspired by this traveler's note: {message}. Warm natural light, "
-            "cinematic but realistic travel photography, postcard aesthetic, "
+            "cinematic but realistic travel photography, personal travel-record aesthetic, "
             "no text, no words, no writing anywhere in the image."
         )
         response = client.images.generate(

@@ -45,7 +45,7 @@ export const analyzeMood = ({ city, moodText, language, latitude, longitude }) =
     })
     .then((res) => res.data);
 
-export const createPostcard = (
+export const createMomentRecord = (
   city,
   place,
   review,
@@ -70,6 +70,8 @@ export const createPostcard = (
       clue_ko: clue?.ko || "",
     })
     .then((res) => res.data);
+
+export const createPostcard = createMomentRecord;
 
 export const updatePostcardNextPlace = (postcardId, place, language) =>
   api

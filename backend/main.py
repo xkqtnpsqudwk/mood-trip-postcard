@@ -174,6 +174,7 @@ class FinalTripPostcardRequest(BaseModel):
 
 class PostcardOut(BaseModel):
     id: int
+    artifact_type: str = "record"
     city: str
     place_name: str
     place_name_i18n: LocalizedText
@@ -350,6 +351,7 @@ def _row_to_postcard(row: sqlite3.Row, language: str = "en") -> PostcardOut:
 
     return PostcardOut(
         id=row["id"],
+        artifact_type=_row_value(row, "artifact_type", "record"),
         city=row["city"],
         place_name=place_name,
         place_name_i18n=place_name_i18n,
@@ -399,7 +401,7 @@ def analyze(
             user_lat=payload.latitude,
             user_lng=payload.longitude,
         )
-        for index, place in enumerate(recommendation["places"])
+        for index, place in enumerate(recommendation["places"][:1])
     ]
 
     return AnalyzeResponse(
@@ -454,6 +456,7 @@ def create_postcard(
         mood_text=payload.mood_text,
         clue_en=payload.clue_en,
         clue_ko=payload.clue_ko,
+        artifact_type="record",
     )
     return _row_to_postcard(row, payload.language)
 
@@ -487,9 +490,9 @@ def create_final_trip_postcard(
     payload: FinalTripPostcardRequest,
     user: sqlite3.Row = Depends(require_user),
 ) -> PostcardOut:
-    rows = database.get_postcards_by_trip(trip_id, user["id"])
+    rows = database.get_records_by_trip(trip_id, user["id"])
     if not rows:
-        raise HTTPException(status_code=404, detail="Trip postcards not found")
+        raise HTTPException(status_code=404, detail="Trip records not found")
 
     city = rows[0]["city"]
     trip_items = []
@@ -518,7 +521,7 @@ def create_final_trip_postcard(
         ) from exc
 
     place_name_en = f"{city} Trip"
-    place_name_ko = f"{_CITY_NAMES_KO.get(city, city)} 여정"
+    place_name_ko = f"{_CITY_NAMES_KO.get(city, city)} 여행 엽서"
     review_text = "\n".join(item["review"] for item in trip_items if item["review"])
     image_path = _save_postcard_image(generated["image_base64"])
 
@@ -540,6 +543,7 @@ def create_final_trip_postcard(
         title_ko="",
         message_ko="",
         user_id=user["id"],
+        artifact_type="postcard",
     )
     return _row_to_postcard(row, payload.language)
 

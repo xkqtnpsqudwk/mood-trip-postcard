@@ -11,59 +11,47 @@ const localized = (value, lang) => {
 
 export default function RecommendationView({
   result,
-  visitedPlaceIds = [],
   isContinuation = false,
   requireLogin = false,
   onSelectPlace,
   onStartOver,
   onEndTrip,
   isEndingTrip = false,
-  onDismiss,
 }) {
   const { t, lang } = useLanguage();
   const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState(null);
   if (!result) return null;
   const { clue, places: allPlaces } = result;
-  const places = allPlaces.filter((place) => !visitedPlaceIds.includes(place.id));
+  const places = allPlaces;
   const selectedPlace =
     places.find((place) => place.id === selectedPlaceId) || places[0] || null;
   const activePlaceId = hoveredPlaceId || selectedPlace?.id || null;
   const actionButtons = (
     <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-center">
-      {isContinuation && (
-        <button
-          onClick={onEndTrip}
-          disabled={isEndingTrip}
-          className="text-sm font-semibold text-rose-500 underline-offset-4 hover:text-rose-600 hover:underline dark:text-fuchsia-300 dark:hover:text-fuchsia-200"
-        >
-          {isEndingTrip ? t.finalPostcard.loading : t.recommendation.endTrip}
-        </button>
-      )}
+      <button
+        onClick={onEndTrip}
+        disabled={isEndingTrip}
+        className="text-sm font-semibold text-rose-500 underline-offset-4 hover:text-rose-600 hover:underline dark:text-fuchsia-300 dark:hover:text-fuchsia-200"
+      >
+        {isEndingTrip ? t.finalPostcard.loading : t.recommendation.endTrip}
+      </button>
       <button
         onClick={onStartOver}
         className="text-sm font-medium text-stone-600 underline-offset-4 hover:text-stone-800 hover:underline dark:text-zinc-300 dark:hover:text-zinc-100"
       >
         {t.recommendation.startOver}
       </button>
-      {!isContinuation && (
-        <button
-          onClick={onDismiss}
-          className="text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          {t.recommendation.dismiss}
-        </button>
-      )}
     </div>
   );
 
   return (
     <div className="mx-auto w-full max-w-3xl pb-[calc(6rem+env(safe-area-inset-bottom))] lg:max-w-5xl">
-      <div className="rounded-3xl bg-gradient-to-br from-rose-200 via-rose-100 to-violet-200 p-6 text-center shadow-[0_25px_60px_-15px_rgba(216,180,254,0.5)] ring-1 ring-white/60 sm:p-8 dark:from-fuchsia-950/50 dark:via-transparent dark:to-cyan-950/40 dark:shadow-[0_0_40px_rgba(168,85,247,0.15)] dark:ring-fuchsia-500/20">
+      <div className="rounded-3xl bg-gradient-to-br from-rose-100 via-white to-pink-100 p-6 text-center shadow-[0_25px_60px_-15px_rgba(251,113,133,0.35)] ring-1 ring-rose-100/80 sm:p-8 dark:from-fuchsia-950/45 dark:via-zinc-950/75 dark:to-violet-950/45 dark:shadow-[0_0_40px_rgba(217,70,239,0.14)] dark:ring-fuchsia-500/20">
         <p className="text-xs font-semibold uppercase tracking-widest text-rose-400 dark:text-fuchsia-400">
           {t.recommendation.clueLabel}
         </p>
-        <p className="mt-3 font-[family-name:var(--font-display)] text-lg italic text-stone-700 sm:text-xl dark:text-cyan-100">
+        <p className="mt-3 font-[family-name:var(--font-display)] text-lg italic text-stone-700 sm:text-xl dark:text-fuchsia-50">
           &ldquo;{localized(clue, lang)}&rdquo;
         </p>
       </div>
@@ -83,13 +71,13 @@ export default function RecommendationView({
             onSelectMarker={setSelectedPlaceId}
           />
           {selectedPlace && (
-            <div className="flex min-h-full flex-col rounded-2xl border border-rose-200 bg-white p-5 text-left shadow-sm ring-2 ring-rose-100 dark:border-fuchsia-500/40 dark:bg-zinc-900/60 dark:ring-fuchsia-500/15">
+            <div className="flex min-h-full flex-col rounded-2xl border border-rose-100 bg-white/90 p-5 text-left shadow-sm ring-2 ring-rose-100/80 dark:border-fuchsia-500/30 dark:bg-zinc-950/65 dark:ring-fuchsia-500/15">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-lg font-semibold text-stone-800 dark:text-zinc-100">
                   {localized(selectedPlace.name_i18n, lang) || selectedPlace.name}
                 </span>
                 {selectedPlace.type && (
-                  <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-500 dark:bg-cyan-950/50 dark:text-cyan-300">
+                  <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-500 dark:bg-fuchsia-950/50 dark:text-fuchsia-200">
                     {localized(selectedPlace.type_i18n, lang) || selectedPlace.type}
                   </span>
                 )}
@@ -112,7 +100,7 @@ export default function RecommendationView({
               )}
               <button
                 onClick={() => onSelectPlace(selectedPlace)}
-                className="mt-auto pt-5 text-left text-sm font-medium text-rose-400 hover:text-rose-500 dark:text-cyan-400 dark:hover:text-cyan-300"
+                className="mt-auto pt-5 text-left text-sm font-medium text-rose-500 hover:text-rose-600 dark:text-fuchsia-300 dark:hover:text-fuchsia-200"
               >
                 {requireLogin ? t.recommendation.visitCtaGuest : t.recommendation.visitCta}
               </button>
@@ -120,7 +108,7 @@ export default function RecommendationView({
           )}
         </div>
       ) : (
-        <p className="mx-auto mt-4 max-w-xl rounded-2xl bg-white/70 px-5 py-4 text-center text-sm text-stone-500 shadow-sm ring-1 ring-white/60 dark:bg-zinc-900/60 dark:text-zinc-400 dark:ring-fuchsia-500/20">
+        <p className="mx-auto mt-4 max-w-xl rounded-2xl bg-white/80 px-5 py-4 text-center text-sm text-stone-500 shadow-sm ring-1 ring-rose-100/80 dark:bg-zinc-950/60 dark:text-zinc-400 dark:ring-fuchsia-500/20">
           {isContinuation ? t.recommendation.allVisited : t.recommendation.noMatches}
         </p>
       )}
