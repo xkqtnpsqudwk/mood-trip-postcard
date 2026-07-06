@@ -69,6 +69,7 @@
         "We couldn't find a strong place match yet. Try describing your mood with a little more detail.",
       allVisited:
         "There is no place to show yet. Try describing your mood again.",
+      distanceLabel: (km) => `${km} km from your location`,
       sourceDisclaimer:
         "These are candidate places the AI found from public web sources. Please confirm current hours, access, and safety yourself before visiting.",
     },
@@ -229,6 +230,7 @@
       noMatches:
         "아직 강하게 맞는 장소를 찾지 못했어요. 기분을 조금 더 자세히 적어 다시 시도해보세요.",
       allVisited: "아직 보여드릴 장소가 없어요. 새로운 기분으로 다시 시도해보세요.",
+      distanceLabel: (km) => `현재 위치 기준 ${km}km`,
       sourceDisclaimer:
         "AI가 공개 웹 정보를 바탕으로 찾은 장소 후보예요. 방문 전 운영 시간, 접근성, 안전 정보는 꼭 직접 확인해주세요.",
     },

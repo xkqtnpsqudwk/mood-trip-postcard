@@ -34,7 +34,7 @@ function getUserLocation() {
           longitude: position.coords.longitude,
         }),
       () => resolve(null),
-      { timeout: 5000, maximumAge: 5 * 60 * 1000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5 * 60 * 1000 }
     );
   });
 }

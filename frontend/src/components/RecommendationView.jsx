@@ -84,10 +84,20 @@ export default function RecommendationView({
               </div>
               {(localized(selectedPlace.duration_label_i18n, lang) ||
                 selectedPlace.duration_labels?.join(" / ")) && (
-                <span className="mt-1 text-[11px] text-stone-400 dark:text-zinc-500">
-                  {localized(selectedPlace.duration_label_i18n, lang) ||
-                    selectedPlace.duration_labels.join(" / ")}
-                </span>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-stone-400 dark:text-zinc-500">
+                  <span>
+                    {localized(selectedPlace.duration_label_i18n, lang) ||
+                      selectedPlace.duration_labels.join(" / ")}
+                  </span>
+                  {typeof selectedPlace.distance_km === "number" && (
+                    <>
+                      <span aria-hidden="true">&middot;</span>
+                      <span className="font-medium text-rose-500 dark:text-fuchsia-300">
+                        {t.recommendation.distanceLabel(selectedPlace.distance_km)}
+                      </span>
+                    </>
+                  )}
+                </div>
               )}
               <span className="mt-3 text-sm leading-relaxed text-stone-500 dark:text-zinc-400">
                 {localized(selectedPlace.description_i18n, lang) ||
