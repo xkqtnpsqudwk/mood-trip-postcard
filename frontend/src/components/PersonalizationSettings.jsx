@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "../LanguageContext";
 import { fetchPreferences, savePreferences } from "../api";
 
-export default function PersonalizationSettings() {
+export default function PersonalizationSettings({ onSaved }) {
   const { t } = useLanguage();
   const p = t.personalization;
 
@@ -29,6 +29,11 @@ export default function PersonalizationSettings() {
     try {
       await savePreferences(styleText.trim());
       setJustSaved(true);
+      if (onSaved) {
+        // Brief pause so the "saved!" confirmation is still visible when we
+        // hand off to the create tab, instead of switching instantly.
+        setTimeout(onSaved, 1100);
+      }
     } finally {
       setIsSaving(false);
     }

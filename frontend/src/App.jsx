@@ -434,7 +434,7 @@ function AppContent() {
 
         {activeTab === "personalization" &&
           (user ? (
-            <PersonalizationSettings />
+            <PersonalizationSettings onSaved={() => setActiveTab("create")} />
           ) : (
             <div className="mx-auto w-full max-w-md">
               <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
