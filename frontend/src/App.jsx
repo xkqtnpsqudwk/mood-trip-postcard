@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Landing from "./components/Landing";
 import MoodForm from "./components/MoodForm";
 import RecommendationView from "./components/RecommendationView";
@@ -93,8 +93,10 @@ function AccountControl({ onLoginClick }) {
 function AppContent() {
   const { lang, setLang, t } = useLanguage();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const previousUserRef = useRef(user);
   const [view, setView] = useState("landing");
   const [activeTab, setActiveTab] = useState("create");
+  const [returnTabAfterLogin, setReturnTabAfterLogin] = useState(null);
   const [step, setStep] = useState("form");
   const [city, setCity] = useState("");
   const [moodText, setMoodText] = useState("");
@@ -115,6 +117,15 @@ function AppContent() {
     if (!isAuthLoading && user) setView("app");
   }, [isAuthLoading, user]);
 
+  useEffect(() => {
+    if (!isAuthLoading && previousUserRef.current && !user) {
+      resetFlow();
+      setActiveTab("create");
+      setView("landing");
+    }
+    previousUserRef.current = user;
+  }, [isAuthLoading, user]);
+
   const tabs = [
     { id: "create", label: t.tabCreate },
     { id: "archive", label: t.tabArchive },
@@ -127,6 +138,7 @@ function AppContent() {
     setSelectedPlace(null);
     setCreatedRecord(null);
     setError(null);
+    setReturnTabAfterLogin(null);
     setTripId(null);
     setVisitedPlaceIds([]);
     setVisitedPlaceNames([]);
@@ -262,7 +274,12 @@ function AppContent() {
             </h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2 justify-self-end">
-            <AccountControl onLoginClick={() => setActiveTab("personalization")} />
+            <AccountControl
+              onLoginClick={() => {
+                setReturnTabAfterLogin(activeTab);
+                setActiveTab("personalization");
+              }}
+            />
             <ThemeToggle />
             <div className="inline-flex rounded-full bg-white/80 p-1 text-xs font-medium shadow-md ring-1 ring-rose-100/80 dark:bg-zinc-950/70 dark:shadow-none dark:ring-fuchsia-500/20">
               {["ko", "en"].map((code) => (
@@ -286,7 +303,10 @@ function AppContent() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setReturnTabAfterLogin(null);
+                setActiveTab(tab.id);
+              }}
               className={`shrink-0 rounded-full px-5 py-2 text-sm font-medium transition ${
                 activeTab === tab.id
                   ? "bg-rose-400 text-white shadow-[0_6px_16px_-2px_rgba(251,113,133,0.55)] dark:bg-fuchsia-500 dark:shadow-[0_0_16px_rgba(232,68,255,0.5)]"
@@ -420,7 +440,14 @@ function AppContent() {
               <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
                 {t.personalization.loginRequired}
               </p>
-              <AuthForm />
+              <AuthForm
+                onSuccess={() => {
+                  if (returnTabAfterLogin) {
+                    setActiveTab(returnTabAfterLogin);
+                    setReturnTabAfterLogin(null);
+                  }
+                }}
+              />
             </div>
           ))}
       </main>
