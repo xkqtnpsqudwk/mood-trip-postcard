@@ -108,6 +108,7 @@ function AppContent() {
   const [archiveRefreshKey, setArchiveRefreshKey] = useState(0);
   const [tripId, setTripId] = useState(null);
   const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
+  const [visitedPlaceNames, setVisitedPlaceNames] = useState([]);
   const [finalTripPostcard, setFinalTripPostcard] = useState(null);
 
   useEffect(() => {
@@ -128,6 +129,7 @@ function AppContent() {
     setError(null);
     setTripId(null);
     setVisitedPlaceIds([]);
+    setVisitedPlaceNames([]);
     setFinalTripPostcard(null);
     setMoodText("");
   };
@@ -137,7 +139,12 @@ function AppContent() {
     setIsAnalyzing(true);
     try {
       const location = await getUserLocation();
-      const result = await analyzeMood({ ...formState, language: lang, ...location });
+      const result = await analyzeMood({
+        ...formState,
+        language: lang,
+        ...location,
+        excludedPlaceNames: visitedPlaceNames,
+      });
       setCity(formState.city);
       setMoodText(formState.moodText);
       setAnalyzeResult(result);
@@ -171,6 +178,18 @@ function AppContent() {
       );
       setCreatedRecord(record);
       setVisitedPlaceIds((ids) => [...ids, selectedPlace.id]);
+      setVisitedPlaceNames((names) =>
+        Array.from(
+          new Set(
+            [
+              ...names,
+              selectedPlace.name,
+              selectedPlace.name_i18n?.en,
+              selectedPlace.name_i18n?.ko,
+            ].filter(Boolean)
+          )
+        )
+      );
       setStep("record");
       setArchiveRefreshKey((key) => key + 1);
     } catch {

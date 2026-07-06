@@ -86,6 +86,7 @@ class AnalyzeRequest(BaseModel):
     language: str = "en"
     latitude: float | None = None
     longitude: float | None = None
+    excluded_place_names: list[str] = []
 
 
 class SignupRequest(BaseModel):
@@ -388,6 +389,7 @@ def analyze(
             payload.mood_text,
             payload.language,
             style_text=style_text,
+            excluded_place_names=payload.excluded_place_names,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI recommendation failed: {exc}") from exc

@@ -73,6 +73,10 @@ def _strip_markdown_links(text: str) -> str:
     return re.sub(r"\s*\(\[[^\]]*\]\([^)]*\)\)", "", text).strip()
 
 
+def _normalize_place_name(value: str) -> str:
+    return re.sub(r"[\W_]+", "", value or "", flags=re.UNICODE).casefold()
+
+
 _PLACE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -117,6 +121,7 @@ def recommend_trip(
     language: str = "en",
     *,
     style_text: str | None = None,
+    excluded_place_names: list[str] | None = None,
 ) -> dict:
     """Ask the model to recommend real places, grounded with web search.
 
@@ -133,6 +138,9 @@ def recommend_trip(
     """
     client = _get_client()
     duration_vocab = ", ".join(tags.AVAILABLE_TIME.keys())
+    excluded_place_names = [
+        name.strip() for name in (excluded_place_names or []) if name and name.strip()
+    ]
     instructions = (
         "You are an emotionally perceptive solo-travel companion. Given a city, "
         "the traveler's current mood, and (optionally) a free-text profile "
@@ -156,6 +164,12 @@ def recommend_trip(
         "picks unless their profile strongly suggests crowds feel like "
         "comfort to them. Since you are choosing only one place, make the "
         "reason for that one choice specific and grounded in the saved profile. "
+        "If excluded_place_names is provided, do not recommend any listed place "
+        "or the same place under a translated, abbreviated, or slightly varied "
+        "name. Treat the excluded list as places the traveler has already "
+        "recorded during this trip. Choose a meaningfully different place, "
+        "preferably in a different micro-area or with a different texture, "
+        "while still fitting the saved profile. "
         "The traveler is solo by default. You MUST use the web_search "
         "tool to verify each place actually exists and is currently operating "
         "before including it - never rely on memory alone, and prefer "
@@ -186,6 +200,7 @@ def recommend_trip(
             "city": city,
             "mood_text": mood_text,
             "saved_personality_profile": style_text or "",
+            "excluded_place_names": excluded_place_names,
             "preferred_ui_language_for_tone": _language_name(language),
         },
         ensure_ascii=False,
@@ -207,11 +222,20 @@ def recommend_trip(
         timeout=OPENAI_TIMEOUT_SECONDS,
     )
     data = json.loads(response.output_text)
+    excluded_normalized = {_normalize_place_name(name) for name in excluded_place_names}
 
     valid_duration = set(tags.AVAILABLE_TIME.keys())
     valid_intensity = {"LOW", "MEDIUM", "HIGH"}
     places = []
     for place in data.get("places", []):
+        place_names = [
+            _normalize_place_name(place.get("name_en", "")),
+            _normalize_place_name(place.get("name_ko", "")),
+        ]
+        if excluded_normalized.intersection(place_names):
+            raise RuntimeError(
+                f"AI recommendation duplicated an excluded place: {place.get('name_en')}"
+            )
         duration = place.get("duration")
         if duration not in valid_duration:
             duration = next(iter(valid_duration))

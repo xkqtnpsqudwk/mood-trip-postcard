@@ -34,7 +34,14 @@ export const fetchPreferences = () => api.get("/preferences").then((res) => res.
 export const savePreferences = (styleText) =>
   api.put("/preferences", { style_text: styleText || "" }).then((res) => res.data);
 
-export const analyzeMood = ({ city, moodText, language, latitude, longitude }) =>
+export const analyzeMood = ({
+  city,
+  moodText,
+  language,
+  latitude,
+  longitude,
+  excludedPlaceNames = [],
+}) =>
   api
     .post("/analyze", {
       city,
@@ -42,6 +49,7 @@ export const analyzeMood = ({ city, moodText, language, latitude, longitude }) =
       language,
       latitude: latitude ?? null,
       longitude: longitude ?? null,
+      excluded_place_names: excludedPlaceNames,
     })
     .then((res) => res.data);
 
