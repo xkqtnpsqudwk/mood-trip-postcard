@@ -6,32 +6,35 @@ set "KEY_FOUND="
 
 if exist "%ENV_FILE%" (
     for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
-        if /i "%%A"=="NVIDIA_NIM_API_KEY" if not "%%B"=="" set "KEY_FOUND=1"
+        if /i "%%A"=="OPENAI_API_KEY" if not "%%B"=="" set "KEY_FOUND=1"
     )
 )
 
 if not defined KEY_FOUND (
     echo.
     echo ============================================================
-    echo   NVIDIA_NIM_API_KEY is missing from backend\.env
+    echo   OPENAI_API_KEY is missing from backend\.env
     echo.
-    echo   This app needs a free NVIDIA NIM API key to talk to the
-    echo   AI (mood analysis, postcard text, and postcard photo^).
+    echo   This app needs an OpenAI API key for mood analysis,
+    echo   preference extraction, postcard image generation, and
+    echo   final trip postcard generation.
     echo.
-    echo   1. Go to https://build.nvidia.com/ and sign in ^(free^)
-    echo   2. Open any model page and click "Get API Key"
-    echo   3. Create/edit backend\.env and add this line:
-    echo        NVIDIA_NIM_API_KEY=nvapi-...
+    echo   1. Create an OpenAI API key in your OpenAI account
+    echo   2. Create/edit backend\.env and add this line:
+    echo        OPENAI_API_KEY=sk-...
+    echo   3. Optional model overrides:
+    echo        OPENAI_TEXT_MODEL=gpt-5.4
+    echo        OPENAI_IMAGE_MODEL=gpt-image-1.5
     echo ============================================================
     echo.
     pause
 )
 
-echo Starting Mood Trip Postcard dev servers...
+echo Starting MoodTrip dev servers...
 
-start "Mood Trip Postcard - Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && uvicorn main:app --reload --host 127.0.0.1 --port 8000"
+start "MoodTrip - Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && uvicorn main:app --reload --host 127.0.0.1 --port 8000"
 
-start "Mood Trip Postcard - Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "MoodTrip - Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo.
 echo Backend:  http://127.0.0.1:8000/docs
