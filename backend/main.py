@@ -126,6 +126,11 @@ class MapPosition(BaseModel):
     y: float
 
 
+class Coordinates(BaseModel):
+    lat: float
+    lng: float
+
+
 class PlaceOut(BaseModel):
     id: int
     city: str
@@ -141,6 +146,7 @@ class PlaceOut(BaseModel):
     reason_i18n: LocalizedText
     intensity_level: str = "MEDIUM"
     map_position: MapPosition
+    coordinates: Coordinates
     distance_km: float | None = None
 
 
@@ -295,10 +301,10 @@ def _place_out(
     user_lng: float | None = None,
 ) -> PlaceOut:
     duration_code = place["duration"]
+    coordinates = place["coordinates"]
 
     distance_km = None
     if user_lat is not None and user_lng is not None:
-        coordinates = place["coordinates"]
         distance_km = _haversine_km(user_lat, user_lng, coordinates["lat"], coordinates["lng"])
 
     return PlaceOut(
@@ -319,6 +325,7 @@ def _place_out(
         reason_i18n=LocalizedText(**place["reason"]),
         intensity_level=place["intensity_level"],
         map_position=MapPosition(**place["map_position"]),
+        coordinates=Coordinates(lat=coordinates["lat"], lng=coordinates["lng"]),
         distance_km=round(distance_km, 1) if distance_km is not None else None,
     )
 
@@ -511,11 +518,25 @@ def create_final_trip_postcard(
             }
         )
 
+    # Weave each record's own clue (already saved when it was recommended)
+    # into one new closing line via a text model call, rather than a plain
+    # user note or a mechanical join of the existing clues.
+    clue_pairs = [
+        {
+            "en": _row_value(row, "clue_en"),
+            "ko": _row_value(row, "clue_ko"),
+        }
+        for row in rows
+        if _row_value(row, "clue_en") or _row_value(row, "clue_ko")
+    ]
+
     try:
+        closing = ai_service.generate_trip_closing_note(city, clue_pairs)
         generated = ai_service.generate_trip_postcard(
             city=city,
             postcards=trip_items,
             language=payload.language,
+            closing_note=closing["en"],
         )
     except Exception as exc:
         raise HTTPException(
@@ -524,12 +545,13 @@ def create_final_trip_postcard(
 
     place_name_en = f"{city} Trip"
     place_name_ko = f"{_CITY_NAMES_KO.get(city, city)} 여행 엽서"
-    review_text = "\n".join(item["review"] for item in trip_items if item["review"])
     image_path = _save_postcard_image(generated["image_base64"])
+    closing_note = closing["ko"] if payload.language == "ko" else closing["en"]
 
     # Persisted like any other postcard (same trip_id) so the trip's closing
     # memory survives a refresh and shows up in the archive instead of only
-    # existing for the one render right after "Finish this trip".
+    # existing for the one render right after "Finish this trip". The back
+    # shows the AI-woven closing line instead of a user-typed note.
     row = database.insert_postcard(
         city=city,
         place_name=place_name_en,
@@ -537,7 +559,7 @@ def create_final_trip_postcard(
         place_name_ko=place_name_ko,
         title="",
         message="",
-        review=review_text,
+        review=closing_note,
         trip_id=trip_id,
         image_path=image_path,
         title_en="",
@@ -545,6 +567,8 @@ def create_final_trip_postcard(
         title_ko="",
         message_ko="",
         user_id=user["id"],
+        clue_en=closing["en"],
+        clue_ko=closing["ko"],
         artifact_type="postcard",
     )
     return _row_to_postcard(row, payload.language)

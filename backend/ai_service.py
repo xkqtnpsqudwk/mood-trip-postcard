@@ -306,7 +306,7 @@ def generate_postcard_image(
             model=OPENAI_IMAGE_MODEL,
             image=image_files,
             prompt=prompt,
-            size="1536x1024",
+            size="auto",
             quality="medium",
             timeout=OPENAI_TIMEOUT_SECONDS,
         )
@@ -320,7 +320,7 @@ def generate_postcard_image(
         response = client.images.generate(
             model=OPENAI_IMAGE_MODEL,
             prompt=prompt,
-            size="1536x1024",
+            size="auto",
             quality="medium",
             timeout=OPENAI_TIMEOUT_SECONDS,
         )
@@ -331,12 +331,70 @@ def generate_postcard_image(
     return image_base64
 
 
+_TRIP_CLOSING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "closing_en": {"type": "string"},
+        "closing_ko": {"type": "string"},
+    },
+    "required": ["closing_en", "closing_ko"],
+    "additionalProperties": False,
+}
+
+
+def generate_trip_closing_note(city: str, clues: list[dict]) -> dict:
+    """Weave a finished trip's per-place clues into one closing line.
+
+    Each clue was already written as a poetic one-line mood note for a
+    single recommended place, in visit order. This blends their shared
+    feeling, texture, or arc into one new sentence rather than just
+    concatenating them.
+
+    Returns: {"en": str, "ko": str}
+    """
+    if not clues:
+        return {"en": "", "ko": ""}
+
+    client = _get_client()
+    clue_lines = "\n".join(
+        f"{index}. EN: {clue.get('en', '')} / KO: {clue.get('ko', '')}"
+        for index, clue in enumerate(clues, start=1)
+    )
+    instructions = (
+        "You are weaving together the emotional clues from a finished solo "
+        f"trip in {city} into one closing line for a travel postcard. Each "
+        "clue below was written as a poetic one-line mood note for a single "
+        "place the traveler visited, in the order visited. Blend their "
+        "shared feeling, texture, or arc into ONE new closing sentence that "
+        "reads like a natural conclusion to the journey - do not just "
+        "concatenate or list them, and do not mention place names. Write it "
+        "in both natural English and Korean, one sentence each."
+    )
+    response = client.responses.create(
+        model=OPENAI_TEXT_MODEL,
+        instructions=instructions,
+        input=clue_lines,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "trip_closing_note",
+                "schema": _TRIP_CLOSING_SCHEMA,
+                "strict": True,
+            }
+        },
+        timeout=OPENAI_TIMEOUT_SECONDS,
+    )
+    data = json.loads(response.output_text)
+    return {"en": data["closing_en"], "ko": data["closing_ko"]}
+
+
 def generate_trip_postcard(
     city: str,
     postcards: list[dict],
     language: str = "en",
+    closing_note: str = "",
 ) -> dict:
-    """Create one final image-only postcard from every postcard in a finished trip.
+    """Create one final postcard-style image from every record in a finished trip.
 
     Returns: {"title": {"en": "", "ko": ""}, "message": {"en": "", "ko": ""},
               "image_base64": str}
@@ -359,47 +417,69 @@ def generate_trip_postcard(
         for item in postcards
         if item.get("image_base64")
     ][:8]
+    # A finished trip always has at least one record, and a record can only
+    # exist once its own image was generated successfully - so this should
+    # never be empty. Fail loudly rather than quietly falling back to a
+    # generic generated image if that invariant is ever violated.
+    if not image_sources:
+        raise RuntimeError("No record images available to build the final postcard")
+
     image_context = "\n".join(
         f"{index}. {item.get('place_name', '')}: "
         f"{item.get('title', '')} / {item.get('message', '')} / {item.get('review', '')}"
         for index, item in enumerate(trip_notes, start=1)
     )
-    if image_sources:
-        prompt = (
-            "Create one polished horizontal final travel postcard collage from "
-            f"these trip images and notes for {city}. The final image should "
-            "feel cohesive, warm, cinematic, and complete, like the visual "
-            "memory of a finished solo city journey. Blend the provided "
-            "postcard images into one elegant composition while preserving "
-            "their real photographed details. Do not add any text, letters, "
-            f"captions, logos, or watermarks. Trip notes:\n{image_context}"
-        )
-        response = client.images.edit(
-            model=OPENAI_IMAGE_MODEL,
-            image=[
-                _image_file_from_base64(image, index)
-                for index, image in enumerate(image_sources, start=1)
-            ],
-            prompt=prompt,
-            size="1536x1024",
-            quality="medium",
-            timeout=OPENAI_TIMEOUT_SECONDS,
-        )
-    else:
-        prompt = (
-            f"A beautiful horizontal final travel postcard photograph for a "
-            f"completed solo trip in {city}. Create a "
-            "cohesive cinematic travel memory, warm natural light, realistic "
-            "postcard aesthetic, no text, no words, no writing anywhere. "
-            f"Trip notes:\n{image_context}"
-        )
-        response = client.images.generate(
-            model=OPENAI_IMAGE_MODEL,
-            prompt=prompt,
-            size="1536x1024",
-            quality="medium",
-            timeout=OPENAI_TIMEOUT_SECONDS,
-        )
+    closing_note_line = (
+        f"\nThe emotional threads running through this whole trip: {closing_note}"
+        if closing_note
+        else ""
+    )
+    prompt = (
+        "Create one polished horizontal image of a finished travel postcard "
+        f"for a completed solo trip in {city}.\n\n"
+        "Use only the attached input photos as the photographic elements. Do "
+        "not invent, generate, or add any new travel photos, landmarks, "
+        "people, scenery, or background scenes. The attached photos must "
+        "remain individually recognizable, with their real photographed "
+        "details preserved.\n\n"
+        "Treat this explicitly as a postcard, not a generic photo blend. "
+        "Arrange the provided real trip photos as if they were physically "
+        "cut out and pasted onto a vintage travel postcard template, like a "
+        "scrapbook page of collected moments. Do not melt, morph, or blend "
+        "the photos into one seamless scene.\n\n"
+        "Tie the collage together with a warm cohesive color grade and "
+        "small decorative postcard touches such as abstract postmark "
+        "shapes, washi tape, paper texture, stamp-like stickers, rounded "
+        "photo corners, subtle shadows, and vintage postcard framing.\n\n"
+        f"Use {city} only as visual context for the overall mood. Do not "
+        "write the city name anywhere.\n\n"
+        "Use the trip notes only to guide the mood, visual rhythm, and "
+        "emotional tone of the postcard. Do not render the notes as "
+        "visible text.\n\n"
+        f"Trip notes:\n{image_context}{closing_note_line}\n\n"
+        "Strict restrictions:\n"
+        "- No readable text\n"
+        "- No letters\n"
+        "- No captions\n"
+        "- No logos\n"
+        "- No watermarks\n"
+        "- No generated extra photos\n"
+        "- No new people or objects that were not in the attached photos\n"
+        "- No seamless fantasy scene\n"
+        "- The result must look like a finished physical travel postcard "
+        "collage made from the attached photos"
+    )
+    response = client.images.edit(
+        model=OPENAI_IMAGE_MODEL,
+        image=[
+            _image_file_from_base64(image, index)
+            for index, image in enumerate(image_sources, start=1)
+        ],
+        prompt=prompt,
+        size="auto",
+        quality="medium",
+        timeout=OPENAI_TIMEOUT_SECONDS,
+    )
 
     image_base64 = _response_image_base64(response)
     if not image_base64:

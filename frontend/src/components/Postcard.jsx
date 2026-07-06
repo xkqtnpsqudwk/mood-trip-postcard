@@ -23,8 +23,6 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
   const [isFlipped, setIsFlipped] = useState(defaultFlipped);
   const placeName = localized(postcard.place_name_i18n, lang) || postcard.place_name;
   const isRecord = (postcard.artifact_type || "record") === "record";
-  const nextPlaceName =
-    localized(postcard.next_place_name_i18n, lang) || postcard.next_place_name;
 
   const handleClick = () => {
     if (onOpen) {
@@ -79,43 +77,21 @@ export default function Postcard({ postcard, defaultFlipped = false, onOpen }) {
               </p>
             </div>
           ) : (
-            <div className="flex h-full gap-4">
-              <div className="flex flex-1 flex-col">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-stone-400">
-                  Post Card
+            <div className="flex h-full flex-col">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-stone-400">
+                {t.postcard.finalCardLabel}
+              </p>
+              <h3 className="mt-2 line-clamp-2 font-[family-name:var(--font-display)] text-xl leading-tight text-stone-800">
+                {t.cities[postcard.city] ?? postcard.city}
+              </h3>
+              {postcard.review && (
+                <p className="mt-4 line-clamp-5 text-sm leading-relaxed text-stone-600">
+                  {postcard.review}
                 </p>
-                <p className="mt-1 truncate text-[10px] text-stone-400">
-                  {t.cities[postcard.city] ?? postcard.city} / {placeName}
-                </p>
-                <div className="mt-5 space-y-4">
-                  <div className="h-px bg-stone-300" />
-                  <div className="h-px bg-stone-300" />
-                  <div className="h-px bg-stone-300" />
-                  <div className="h-px bg-stone-300" />
-                </div>
-                {nextPlaceName && (
-                  <p className="mt-auto truncate text-[10px] text-stone-400">
-                    {t.postcard.nextPlaceLabel}: {nextPlaceName}
-                  </p>
-                )}
-                <p className="mt-auto text-[10px] text-stone-400">
-                  {formatDate(postcard.created_at, t.postcard.locale)}
-                </p>
-              </div>
-
-              <div className="w-px bg-stone-300" />
-
-              <div className="flex w-[42%] flex-col">
-                <div className="ml-auto flex h-16 w-14 items-center justify-center border border-dashed border-stone-400 text-[9px] uppercase tracking-widest text-stone-400">
-                  Stamp
-                </div>
-                <div className="mt-auto space-y-4">
-                  <div className="h-px bg-stone-400" />
-                  <div className="h-px bg-stone-400" />
-                  <div className="h-px bg-stone-400" />
-                  <div className="h-px bg-stone-400" />
-                </div>
-              </div>
+              )}
+              <p className="mt-auto text-[10px] text-stone-400">
+                {formatDate(postcard.created_at, t.postcard.locale)}
+              </p>
             </div>
           )}
         </div>

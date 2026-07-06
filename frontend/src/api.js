@@ -94,9 +94,7 @@ export const updatePostcardNextPlace = (postcardId, place, language) =>
     .then((res) => res.data);
 
 export const createFinalTripPostcard = (tripId, language) =>
-  api
-    .post(`/trip/${tripId}/final-postcard`, { language })
-    .then((res) => res.data);
+  api.post(`/trip/${tripId}/final-postcard`, { language }).then((res) => res.data);
 
 export const fetchArchive = (language) =>
   api.get("/archive", { params: { language } }).then((res) => res.data);

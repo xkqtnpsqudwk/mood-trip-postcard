@@ -220,18 +220,11 @@ function AppContent() {
   };
 
   const handleEndTrip = async () => {
-    if (!tripId) {
+    if (!tripId || visitedPlaceIds.length === 0) {
       resetFlow();
       setActiveTab("archive");
       return;
     }
-
-    if (visitedPlaceIds.length === 0) {
-      resetFlow();
-      setActiveTab("archive");
-      return;
-    }
-
     setError(null);
     setIsFinalizingTrip(true);
     try {
