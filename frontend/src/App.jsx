@@ -92,7 +92,7 @@ function AccountControl({ onLoginClick }) {
 }
 
 function AppContent() {
-  const { lang, setLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
   const { user, isLoading: isAuthLoading } = useAuth();
   const previousUserRef = useRef(user);
   const [view, setView] = useState("landing");
@@ -113,6 +113,7 @@ function AppContent() {
   const [visitedPlaceIds, setVisitedPlaceIds] = useState([]);
   const [visitedPlaceNames, setVisitedPlaceNames] = useState([]);
   const [finalTripPostcard, setFinalTripPostcard] = useState(null);
+  const [placeChats, setPlaceChats] = useState({});
 
   useEffect(() => {
     if (!isAuthLoading && user) setView("app");
@@ -144,6 +145,7 @@ function AppContent() {
     setVisitedPlaceIds([]);
     setVisitedPlaceNames([]);
     setFinalTripPostcard(null);
+    setPlaceChats({});
     setMoodText("");
   };
 
@@ -162,6 +164,7 @@ function AppContent() {
       setMoodText(formState.moodText);
       setAnalyzeResult(result);
       setTripId((currentTripId) => currentTripId || crypto.randomUUID());
+      setPlaceChats({});
       setStep("recommend");
     } catch {
       setError(t.errors.analyze);
@@ -172,7 +175,18 @@ function AppContent() {
 
   const handleSelectPlace = (place) => {
     setSelectedPlace(place);
+    setPlaceChats((chats) => {
+      if (chats[place.id]) return chats;
+      return {
+        ...chats,
+        [place.id]: [{ role: "assistant", content: t.visitChat.initial() }],
+      };
+    });
     setStep(user ? "visitChat" : "loginRequired");
+  };
+
+  const handlePlaceChatMessagesChange = (placeId, messages) => {
+    setPlaceChats((chats) => ({ ...chats, [placeId]: messages }));
   };
 
   const handleReviewSubmit = async (review, photoBase64List = null) => {
@@ -217,6 +231,7 @@ function AppContent() {
     setCreatedRecord(null);
     setAnalyzeResult(null);
     setMoodText("");
+    setPlaceChats({});
     setStep("form");
   };
 
@@ -275,21 +290,6 @@ function AppContent() {
               }}
             />
             <ThemeToggle />
-            <div className="inline-flex rounded-full bg-white/80 p-1 text-xs font-medium shadow-md ring-1 ring-rose-100/80 dark:bg-zinc-950/70 dark:shadow-none dark:ring-fuchsia-500/20">
-              {["ko", "en"].map((code) => (
-                <button
-                  key={code}
-                  onClick={() => setLang(code)}
-                  className={`rounded-full px-3 py-1 uppercase transition ${
-                    lang === code
-                      ? "bg-stone-800 text-white shadow-[0_2px_10px_rgba(41,37,36,0.35)] dark:bg-fuchsia-500 dark:text-white dark:shadow-none"
-                      : "text-stone-500 hover:text-stone-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -360,6 +360,10 @@ function AppContent() {
                 place={selectedPlace}
                 moodText={moodText}
                 clue={analyzeResult?.clue}
+                messages={placeChats[selectedPlace.id] || []}
+                onMessagesChange={(messages) =>
+                  handlePlaceChatMessagesChange(selectedPlace.id, messages)
+                }
                 onVisited={() => setStep("review")}
                 onBack={() => setStep("recommend")}
               />

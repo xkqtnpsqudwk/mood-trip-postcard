@@ -3,6 +3,7 @@ import base64
 import json
 import os
 import re
+from pathlib import Path
 
 from openai import OpenAI
 
@@ -13,6 +14,10 @@ OPENAI_IMAGE_MODEL = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1.5")
 OPENAI_TIMEOUT_SECONDS = 90.0
 
 LANGUAGE_NAMES = {"ko": "Korean", "en": "English"}
+MAP_IMAGE_PATHS = {
+    "Paris": Path(__file__).resolve().parent.parent / "frontend" / "public" / "maps" / "paris-map.png",
+    "Seoul": Path(__file__).resolve().parent.parent / "frontend" / "public" / "maps" / "seoul-map.png",
+}
 
 _client: OpenAI | None = None
 
@@ -75,6 +80,14 @@ def _strip_markdown_links(text: str) -> str:
 
 def _normalize_place_name(value: str) -> str:
     return re.sub(r"[\W_]+", "", value or "", flags=re.UNICODE).casefold()
+
+
+def _map_reference_image_url(city: str) -> str | None:
+    path = MAP_IMAGE_PATHS.get(city)
+    if not path or not path.exists():
+        return None
+    encoded = base64.b64encode(path.read_bytes()).decode()
+    return f"data:image/png;base64,{encoded}"
 
 
 _PLACE_SCHEMA = {
@@ -189,11 +202,17 @@ def recommend_trip(
         "For the place, give a bilingual name/type/description/reason "
         "(natural English and Korean), a duration code from this fixed list: "
         f"{duration_vocab}, an intensity_level of LOW, MEDIUM, or HIGH for "
-        "how stimulating/energetic the place is, an approximate map_x/map_y "
-        "(0-100) representing where the place roughly sits within the city, "
-        "with 0,0 as northwest and 100,100 as southeast, and the place's "
+        "how stimulating/energetic the place is, an approximate map_x/map_y, "
+        "and the place's "
         "real latitude/longitude (use web_search to find its actual current "
-        "coordinates - do not estimate from memory). After choosing the "
+        "coordinates - do not estimate from memory). The attached image is "
+        "the exact city-wide mini-map shown in the product. Set map_x/map_y "
+        "as percentage coordinates on THAT image: 0,0 is the image's top-left "
+        "corner and 100,100 is the image's bottom-right corner. Place the "
+        "marker where the recommended place roughly belongs within the whole "
+        "city outline. This is for approximate city-wide orientation, not "
+        "street-level navigation, so do not overfit to roads or blocks. "
+        "After choosing the "
         "place, also write one poetic metaphorical clue sentence (English "
         "and Korean) that hints at today's mood AND subtly resonates with a "
         "texture, color, or feeling of the selected place - it should read like a preview of what's "
@@ -211,14 +230,30 @@ def recommend_trip(
             "saved_personality_profile": style_text or "",
             "excluded_place_names": excluded_place_names,
             "preferred_ui_language_for_tone": _language_name(language),
+            "map_coordinate_requirement": (
+                "Return map_x/map_y as percent coordinates on the attached "
+                "city-wide mini-map image used by the frontend."
+            ),
         },
         ensure_ascii=False,
     )
+    map_image_url = _map_reference_image_url(city)
+    response_input = user_prompt
+    if map_image_url:
+        response_input = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": user_prompt},
+                    {"type": "input_image", "image_url": map_image_url},
+                ],
+            }
+        ]
 
     response = client.responses.create(
         model=OPENAI_TEXT_MODEL,
         instructions=instructions,
-        input=user_prompt,
+        input=response_input,
         tools=[{"type": "web_search"}],
         text={
             "format": {

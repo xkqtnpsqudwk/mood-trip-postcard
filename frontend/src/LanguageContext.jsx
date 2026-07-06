@@ -1,21 +1,12 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import { translations } from "./i18n";
 
 const LanguageContext = createContext(null);
-const STORAGE_KEY = "mood-trip-postcard:lang";
+const APP_LANGUAGE = "ko";
 
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "en" || stored === "ko" ? stored : "ko";
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, lang);
-  }, [lang]);
-
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t: translations[lang] }}>
+    <LanguageContext.Provider value={{ lang: APP_LANGUAGE, t: translations.ko }}>
       {children}
     </LanguageContext.Provider>
   );

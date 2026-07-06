@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { useLanguage } from "../LanguageContext";
-import { useTheme } from "../ThemeContext";
+
+const MAP_IMAGES = {
+  Paris: "/maps/paris-map.png",
+  Seoul: "/maps/seoul-map.png",
+};
 
 const localized = (value, lang) => {
   if (value && typeof value === "object") {
@@ -11,113 +12,19 @@ const localized = (value, lang) => {
   return value ?? "";
 };
 
-// Free, no-API-key tile sources. CARTO's dark tiles keep the map legible in
-// dark mode without needing a Google/Mapbox key or billing account.
-const TILE_LAYERS = {
-  light: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
-  dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-};
-
-function markerIcon(index, isActive) {
-  const size = isActive ? 26 : 22;
-  return L.divIcon({
-    className: "mood-map-marker",
-    html: `<span style="
-      display:flex;align-items:center;justify-content:center;
-      width:${size}px;height:${size}px;border-radius:9999px;
-      background:${isActive ? "#f43f5e" : "#fb7185"};
-      color:#fff;font-size:11px;font-weight:600;
-      box-shadow:0 0 ${isActive ? 18 : 10}px rgba(244,63,94,0.5);
-      border:2px solid rgba(255,255,255,0.85);
-    ">${index}</span>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
+function clampPercent(value) {
+  const number = Number(value);
+  if (Number.isNaN(number)) return 50;
+  return Math.min(96, Math.max(4, number));
 }
 
 export default function CityMiniMap({ places, activePlaceId, onHover, onSelectMarker }) {
   const { t, lang } = useLanguage();
-  const { theme } = useTheme();
-  const containerRef = useRef(null);
-  const mapRef = useRef(null);
-  const tileLayerRef = useRef(null);
-  const markersRef = useRef([]);
-
   const city = places?.[0]?.city;
-  const validPlaces = (places || []).filter((place) => place.coordinates);
+  const mapImage = MAP_IMAGES[city];
+  const validPlaces = (places || []).filter((place) => place.map_position);
 
-  // Map init/teardown once per mount.
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, {
-      zoomControl: false,
-      attributionControl: true,
-      scrollWheelZoom: false,
-    });
-    map.setView([48.8566, 2.3522], 12);
-    mapRef.current = map;
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  // Swap tile layer with theme.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const config = TILE_LAYERS[theme] ?? TILE_LAYERS.light;
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
-    }
-    tileLayerRef.current = L.tileLayer(config.url, {
-      attribution: config.attribution,
-      maxZoom: 19,
-    }).addTo(map);
-  }, [theme]);
-
-  // Redraw markers and refit view whenever the recommended places change.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    if (validPlaces.length === 0) return;
-
-    validPlaces.forEach((place, index) => {
-      const { lat, lng } = place.coordinates;
-      const marker = L.marker([lat, lng], {
-        icon: markerIcon(index + 1, place.id === activePlaceId),
-      })
-        .addTo(map)
-        .bindTooltip(localized(place.name_i18n, lang) || place.name)
-        .on("click", () => onSelectMarker?.(place.id))
-        .on("mouseover", () => onHover?.(place.id))
-        .on("mouseout", () => onHover?.(null));
-      markersRef.current.push(marker);
-    });
-
-    if (validPlaces.length === 1) {
-      map.setView([validPlaces[0].coordinates.lat, validPlaces[0].coordinates.lng], 14);
-    } else {
-      const bounds = L.latLngBounds(
-        validPlaces.map((place) => [place.coordinates.lat, place.coordinates.lng])
-      );
-      map.fitBounds(bounds, { padding: [32, 32] });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [validPlaces, activePlaceId, lang]);
-
-  if (!city) return null;
+  if (!city || !mapImage) return null;
 
   return (
     <div className="rounded-2xl border border-rose-100 bg-white/80 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-fuchsia-500/20 dark:bg-zinc-950/60 dark:ring-fuchsia-500/15">
@@ -130,10 +37,43 @@ export default function CityMiniMap({ places, activePlaceId, onHover, onSelectMa
         </span>
       </div>
 
-      <div
-        ref={containerRef}
-        className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-xl"
-      />
+      <div className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-xl bg-stone-50 dark:bg-zinc-950">
+        <img
+          src={mapImage}
+          alt={`${t.cities[city] ?? city} ${t.recommendation.mapTitle}`}
+          className="h-full w-full object-contain opacity-80 grayscale contrast-110 dark:opacity-55 dark:invert"
+          draggable="false"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/15 dark:from-zinc-950/20 dark:to-zinc-950/35" />
+        {validPlaces.map((place, index) => {
+          const isActive = place.id === activePlaceId;
+          const x = clampPercent(place.map_position.x);
+          const y = clampPercent(place.map_position.y);
+          const placeName = localized(place.name_i18n, lang) || place.name;
+          return (
+            <button
+              key={place.id}
+              type="button"
+              title={placeName}
+              aria-label={placeName}
+              onClick={() => onSelectMarker?.(place.id)}
+              onMouseEnter={() => onHover?.(place.id)}
+              onMouseLeave={() => onHover?.(null)}
+              className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-lg transition ${
+                isActive
+                  ? "h-7 w-7 bg-rose-500 shadow-rose-400/50 dark:bg-fuchsia-400 dark:shadow-fuchsia-400/50"
+                  : "h-6 w-6 bg-rose-400 shadow-rose-300/40 hover:scale-110 dark:bg-fuchsia-500 dark:shadow-fuchsia-500/40"
+              }`}
+              style={{ left: `${x}%`, top: `${y}%` }}
+            >
+              {index + 1}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-stone-400 dark:text-zinc-500">
+        {t.recommendation.mapHint}
+      </p>
     </div>
   );
 }

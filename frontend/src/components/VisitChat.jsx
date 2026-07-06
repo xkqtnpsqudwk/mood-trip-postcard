@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { sendPlaceChatMessage } from "../api";
 import { useLanguage } from "../LanguageContext";
 
@@ -14,19 +14,15 @@ export default function VisitChat({
   place,
   moodText,
   clue,
+  messages,
+  onMessagesChange,
   onVisited,
   onBack,
 }) {
   const { t, lang } = useLanguage();
   const placeName = localized(place.name_i18n, lang) || place.name;
-  const initialMessage = useMemo(
-    () => ({
-      role: "assistant",
-      content: t.visitChat.initial(placeName),
-    }),
-    [placeName, t]
-  );
-  const [messages, setMessages] = useState([initialMessage]);
+  const visibleMessages =
+    messages.length > 0 ? messages : [{ role: "assistant", content: t.visitChat.initial() }];
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
@@ -36,8 +32,8 @@ export default function VisitChat({
     const content = draft.trim();
     if (!content || isSending) return;
 
-    const nextMessages = [...messages, { role: "user", content }];
-    setMessages(nextMessages);
+    const nextMessages = [...visibleMessages, { role: "user", content }];
+    onMessagesChange(nextMessages);
     setDraft("");
     setError("");
     setIsSending(true);
@@ -50,7 +46,7 @@ export default function VisitChat({
         messages: nextMessages.filter((message) => message.role !== "assistant" || message.content),
         language: lang,
       });
-      setMessages([...nextMessages, { role: "assistant", content: response.reply }]);
+      onMessagesChange([...nextMessages, { role: "assistant", content: response.reply }]);
     } catch {
       setError(t.visitChat.error);
     } finally {
@@ -74,7 +70,7 @@ export default function VisitChat({
         </div>
 
         <div className="mt-5 flex max-h-[420px] flex-col gap-3 overflow-y-auto pr-1">
-          {messages.map((message, index) => (
+          {visibleMessages.map((message, index) => (
             <div
               key={`${message.role}-${index}`}
               className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
