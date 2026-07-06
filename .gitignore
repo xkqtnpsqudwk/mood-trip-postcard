@@ -38,3 +38,4 @@ backend/server.log
 
 # Local tooling
 .claude/
+AGENTS.md
