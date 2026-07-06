@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Landing from "./components/Landing";
 import MoodForm from "./components/MoodForm";
 import RecommendationView from "./components/RecommendationView";
+import VisitChat from "./components/VisitChat";
 import PostcardCreator from "./components/PostcardCreator";
 import Postcard from "./components/Postcard";
 import SharePanel from "./components/SharePanel";
@@ -171,7 +172,7 @@ function AppContent() {
 
   const handleSelectPlace = (place) => {
     setSelectedPlace(place);
-    setStep(user ? "review" : "loginRequired");
+    setStep(user ? "visitChat" : "loginRequired");
   };
 
   const handleReviewSubmit = async (review, photoBase64List = null) => {
@@ -344,7 +345,7 @@ function AppContent() {
                 <p className="mb-4 text-center text-sm text-stone-500 dark:text-zinc-400">
                   {t.auth.postcardLoginPrompt}
                 </p>
-                <AuthForm onSuccess={() => setStep("review")} />
+                <AuthForm onSuccess={() => setStep("visitChat")} />
                 <button
                   onClick={() => setStep("recommend")}
                   className="mx-auto mt-4 block text-center text-sm font-medium text-stone-500 underline-offset-4 hover:text-stone-700 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -352,6 +353,16 @@ function AppContent() {
                   {t.postcardCreator.back}
                 </button>
               </div>
+            )}
+            {step === "visitChat" && selectedPlace && (
+              <VisitChat
+                city={city}
+                place={selectedPlace}
+                moodText={moodText}
+                clue={analyzeResult?.clue}
+                onVisited={() => setStep("review")}
+                onBack={() => setStep("recommend")}
+              />
             )}
             {step === "review" && selectedPlace && (
               <PostcardCreator

@@ -96,6 +96,31 @@ export const updatePostcardNextPlace = (postcardId, place, language) =>
 export const createFinalTripPostcard = (tripId, language) =>
   api.post(`/trip/${tripId}/final-postcard`, { language }).then((res) => res.data);
 
+export const sendPlaceChatMessage = ({
+  city,
+  place,
+  moodText,
+  clue,
+  messages,
+  language,
+}) =>
+  api
+    .post("/place-chat", {
+      city,
+      place_name: place.name_i18n?.[language] || place.name,
+      place_name_en: place.name_i18n?.en || place.name,
+      place_name_ko: place.name_i18n?.ko || place.name,
+      place_type: place.type_i18n?.[language] || place.type || "",
+      place_description:
+        place.description_i18n?.[language] || place.description || "",
+      place_reason: place.reason_i18n?.[language] || place.reason || "",
+      mood_text: moodText || "",
+      clue: clue?.[language] || clue?.en || clue?.ko || "",
+      messages,
+      language,
+    })
+    .then((res) => res.data);
+
 export const fetchArchive = (language) =>
   api.get("/archive", { params: { language } }).then((res) => res.data);
 

@@ -155,6 +155,29 @@ class AnalyzeResponse(BaseModel):
     places: list[PlaceOut]
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class PlaceChatRequest(BaseModel):
+    city: str
+    place_name: str
+    place_name_en: str = ""
+    place_name_ko: str = ""
+    place_type: str = ""
+    place_description: str = ""
+    place_reason: str = ""
+    mood_text: str = ""
+    clue: str = ""
+    messages: list[ChatMessage] = []
+    language: str = "en"
+
+
+class PlaceChatResponse(BaseModel):
+    reply: str
+
+
 class PostcardRequest(BaseModel):
     city: str
     place_name: str
@@ -417,6 +440,35 @@ def analyze(
         clue=recommendation["clue"],
         places=places_out,
     )
+
+
+@app.post("/api/place-chat", response_model=PlaceChatResponse)
+def place_chat(
+    payload: PlaceChatRequest, user: sqlite3.Row | None = Depends(get_current_user)
+) -> PlaceChatResponse:
+    if not payload.place_name.strip():
+        raise HTTPException(status_code=400, detail="place_name must not be empty")
+    if not payload.messages:
+        raise HTTPException(status_code=400, detail="messages must not be empty")
+
+    prefs_row = database.get_user_preferences(user["id"]) if user else None
+    style_text = _row_value(prefs_row, "style_text") if prefs_row else ""
+    try:
+        reply = ai_service.chat_about_place(
+            city=payload.city,
+            place_name=payload.place_name,
+            place_type=payload.place_type,
+            place_description=payload.place_description,
+            place_reason=payload.place_reason,
+            mood_text=payload.mood_text,
+            clue=payload.clue,
+            messages=[message.model_dump() for message in payload.messages],
+            language=payload.language,
+            style_text=style_text,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Place chat failed: {exc}") from exc
+    return PlaceChatResponse(reply=reply)
 
 
 @app.post("/api/postcard", response_model=PostcardOut)

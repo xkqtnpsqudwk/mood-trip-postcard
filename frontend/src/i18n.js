@@ -60,8 +60,8 @@
       mapTitle: "Approximate mood map",
       spotsHeading: "One place for this moment",
       continuationHeading: "One place for your next mood",
-      visitCta: "Record this moment after visiting →",
-      visitCtaGuest: "Record this moment after visiting →",
+      visitCta: "Open trip chat →",
+      visitCtaGuest: "Open trip chat →",
       startOver: "Try again with a new mood",
       dismiss: "Finish without a record",
       endTrip: "Finish this trip",
@@ -72,6 +72,20 @@
       distanceLabel: (km) => `${km} km from your location`,
       sourceDisclaimer:
         "These are candidate places the AI found from public web sources. Please confirm current hours, access, and safety yourself before visiting.",
+    },
+    visitChat: {
+      eyebrow: "Trip companion",
+      heading: (place) => `Chat through your time at ${place}`,
+      subheading:
+        "Talk casually while deciding, moving, staying, or looking back. When the moment feels complete, save it as a record.",
+      initial: () =>
+        "I'm here. Tell me anything - questions, random thoughts, even if it feels messy.",
+      placeholder: "Say anything...",
+      send: "Send",
+      loading: "MoodTrip is thinking...",
+      error: "We couldn't answer within 90 seconds. Please try again.",
+      back: "Back to recommendation",
+      visited: "Save this moment as a record →",
     },
     postcardCreator: {
       heading: "After you visit, how was it?",
@@ -221,8 +235,8 @@
       mapTitle: "대략적인 위치",
       spotsHeading: "지금의 한 걸음을 위한 장소",
       continuationHeading: "새로운 기분에 맞춘 다음 장소",
-      visitCta: "다녀온 뒤 이 순간 기록하기 →",
-      visitCtaGuest: "다녀온 뒤 이 순간 기록하기 →",
+      visitCta: "여정 대화 열기 →",
+      visitCtaGuest: "여정 대화 열기 →",
       startOver: "새로운 기분으로 다시 추천받기",
       dismiss: "기록 없이 여행 마무리하기",
       endTrip: "여행 마무리하기",
@@ -232,6 +246,20 @@
       distanceLabel: (km) => `현재 위치 기준 ${km}km`,
       sourceDisclaimer:
         "AI가 공개 웹 정보를 바탕으로 찾은 장소 후보예요. 방문 전 운영 시간, 접근성, 안전 정보는 꼭 직접 확인해주세요.",
+    },
+    visitChat: {
+      eyebrow: "여정 동행 대화",
+      heading: (place) => `${place}에서의 시간을 함께 이야기해요`,
+      subheading:
+        "갈지 고민하는 순간부터 머무는 동안, 다녀온 뒤 돌아보는 순간까지 친구처럼 편하게 대화할 수 있어요. 충분히 정리되면 기록으로 남겨요.",
+      initial: () =>
+        "나한테 뭐든 말해도 돼. 궁금한 거든, 그냥 드는 생각이든, 좀 애매한 기분이든.",
+      placeholder: "아무거나 말해줘...",
+      send: "보내기",
+      loading: "MoodTrip이 답을 준비하고 있어요...",
+      error: "90초 안에 답변하지 못했어요. 다시 시도해주세요.",
+      back: "추천으로 돌아가기",
+      visited: "이 순간 기록으로 남기기 →",
     },
     postcardCreator: {
       heading: "다녀온 뒤, 어떠셨나요?",

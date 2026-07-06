@@ -114,6 +114,15 @@ _RECOMMEND_TRIP_SCHEMA = {
     "additionalProperties": False,
 }
 
+_PLACE_CHAT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "reply": {"type": "string"},
+    },
+    "required": ["reply"],
+    "additionalProperties": False,
+}
+
 
 def recommend_trip(
     city: str,
@@ -271,6 +280,78 @@ def recommend_trip(
         "clue": {"en": data["clue_en"], "ko": data["clue_ko"]},
         "places": places,
     }
+
+
+def chat_about_place(
+    *,
+    city: str,
+    place_name: str,
+    place_type: str,
+    place_description: str,
+    place_reason: str,
+    mood_text: str,
+    clue: str,
+    messages: list[dict],
+    language: str = "en",
+    style_text: str | None = None,
+) -> str:
+    """Answer a short ongoing chat about the recommended place."""
+    client = _get_client()
+    chat_history = [
+        {
+            "role": item.get("role", "user"),
+            "content": str(item.get("content", ""))[:1000],
+        }
+        for item in messages[-8:]
+        if item.get("content")
+    ]
+    instructions = (
+        "You are MoodTrip's friendly solo-travel companion, like a close "
+        "friend texting alongside the traveler. Be casual, brief, and human. "
+        "Use everyday phrasing, light reactions, and occasional fragments. "
+        "Do not sound like an app, guide, therapist, coach, marketer, or "
+        "customer-support bot. Do not explain your role. The traveler has "
+        "received one recommended place and may be talking before going, "
+        "while moving there, while staying there, or after returning. Answer "
+        "conversationally and naturally, grounded only in the place context "
+        "provided. Keep replies useful but not polished: help them decide how "
+        "to approach the place, notice details while there, reflect on what "
+        "they felt afterward, and shape a memory they can later save as a "
+        "record. Do not claim live facts such as today's opening hours unless "
+        "they were provided. Encourage the traveler to verify hours, access, "
+        "and safety when relevant. Do not invent a new recommendation. Ask "
+        "at most one short follow-up question when it helps the conversation. "
+        f"Write only in {_language_name(language)} and keep the reply under 60 words."
+    )
+    input_payload = {
+        "city": city,
+        "place": {
+            "name": place_name,
+            "type": place_type,
+            "description": place_description,
+            "reason": place_reason,
+        },
+        "traveler_mood": mood_text,
+        "metaphorical_clue": clue,
+        "saved_personality_profile": style_text or "",
+        "chat_history": chat_history,
+    }
+    response = client.responses.create(
+        model=OPENAI_TEXT_MODEL,
+        instructions=instructions,
+        input=json.dumps(input_payload, ensure_ascii=False),
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "place_chat",
+                "schema": _PLACE_CHAT_SCHEMA,
+                "strict": True,
+            }
+        },
+        timeout=OPENAI_TIMEOUT_SECONDS,
+    )
+    data = json.loads(response.output_text)
+    return data["reply"]
 
 
 def generate_postcard_image(
