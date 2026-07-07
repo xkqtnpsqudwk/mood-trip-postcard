@@ -1,6 +1,73 @@
 @echo off
 setlocal enabledelayedexpansion
 
+if not exist "%~dp0backend\venv\Scripts\activate.bat" (
+    echo.
+    echo ============================================================
+    echo   Setting up the backend virtual environment for the first time...
+    echo ============================================================
+    where python >nul 2>&1
+    if errorlevel 1 (
+        echo.
+        echo   Python was not found on PATH. Install Python 3.10+ and
+        echo   make sure it's on PATH, then run this script again.
+        echo.
+        pause
+        exit /b 1
+    )
+    call python -m venv "%~dp0backend\venv"
+    if errorlevel 1 (
+        echo.
+        echo   Failed to create backend\venv. See the error above.
+        echo.
+        pause
+        exit /b 1
+    )
+    pushd "%~dp0backend"
+    call venv\Scripts\activate.bat
+    call pip install -r requirements.txt
+    set "PIP_RESULT=!ERRORLEVEL!"
+    popd
+    if not "!PIP_RESULT!"=="0" (
+        echo.
+        echo   Failed to install backend dependencies. See the error above.
+        echo.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo   Backend environment ready.
+)
+
+if not exist "%~dp0frontend\node_modules" (
+    echo.
+    echo ============================================================
+    echo   Installing frontend dependencies for the first time...
+    echo ============================================================
+    where npm >nul 2>&1
+    if errorlevel 1 (
+        echo.
+        echo   npm was not found on PATH. Install Node.js and make
+        echo   sure it's on PATH, then run this script again.
+        echo.
+        pause
+        exit /b 1
+    )
+    pushd "%~dp0frontend"
+    call npm install
+    set "NPM_RESULT=!ERRORLEVEL!"
+    popd
+    if not "!NPM_RESULT!"=="0" (
+        echo.
+        echo   Failed to install frontend dependencies. See the error above.
+        echo.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo   Frontend dependencies ready.
+)
+
 set "ENV_FILE=%~dp0backend\.env"
 set "KEY_FOUND="
 
@@ -17,7 +84,8 @@ if not defined KEY_FOUND (
     echo.
     echo   This app needs an OpenAI API key for mood analysis,
     echo   preference extraction, postcard image generation, and
-    echo   final trip postcard generation.
+    echo   final trip postcard generation. This part can't be
+    echo   automated - you need your own key.
     echo.
     echo   1. Create an OpenAI API key in your OpenAI account
     echo   2. Create/edit backend\.env and add this line:
